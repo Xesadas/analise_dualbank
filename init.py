@@ -2,95 +2,92 @@ import pandas as pd
 import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
-import plotly.graph_objects as go
 
-# Carregar os dados (ajuste o caminho do arquivo)
+# Carregar os dados
 df = pd.read_excel("stores.xlsx")
 
-# Limpeza básica dos dados
-meses = ['Faturamento Dezembro', 'Faturamento Janeiro', 'Faturamento Fevereiro']
-for mes in meses:
-    df[mes] = pd.to_numeric(df[mes], errors='coerce').fillna(0)
+# Limpeza e preparação dos dados
+meses = {
+    'Faturamento Dezembro': 'Dezembro',
+    'Faturamento Janeiro': 'Janeiro',
+    'Faturamento Fevereiro': 'Fevereiro'
+}
+
+# Criar formato longo para os dados
+df_long = df.melt(
+    id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
+    value_vars=meses.keys(),
+    var_name='Mês',
+    value_name='Faturamento'
+)
+df_long['Mês'] = df_long['Mês'].map(meses)
 
 # Criar aplicação Dash
 app = dash.Dash(__name__)
 
 app.layout = html.Div([
-    html.H1("Análise de Faturamento - Dashboard Interativo", style={'textAlign': 'center'}),
-    
     html.Div([
-        html.Div([
-            dcc.Dropdown(
-                id='estabelecimento-dropdown',
-                options=[{'label': nome, 'value': nome} for nome in df['ESTABELECIMENTO NOME1'].unique()],
-                multi=True,
-                placeholder="Selecione os estabelecimentos"
-            )
-        ], style={'width': '48%', 'display': 'inline-block'}),
+        html.H1("Análise de Faturamento por Cliente", 
+               style={'textAlign': 'center', 'color': '#2c3e50'}),
         
         html.Div([
             dcc.Dropdown(
-                id='status-dropdown',
-                options=[{'label': status, 'value': status} for status in df['STATUS'].unique()],
+                id='cliente-dropdown',
+                options=[{'label': nome, 'value': nome} 
+                        for nome in df['ESTABELECIMENTO NOME1'].unique()],
                 multi=True,
-                placeholder="Filtrar por status"
+                placeholder="Selecione até 5 clientes para comparar",
+                style={'width': '100%', 'margin': '10px 0'}
             )
-        ], style={'width': '48%', 'float': 'right', 'display': 'inline-block'})
-    ]),
-    
-    dcc.Graph(id='faturamento-grafico'),
-    
-    dcc.Graph(id='media-grafico'),
-    
-    html.Div([
-        html.H3("Dados Detalhados"),
-        html.Div(id='tabela-dados')
-    ])
+        ], style={'width': '80%', 'margin': '0 auto'}),
+        
+        dcc.Graph(
+            id='faturamento-grafico',
+            style={'height': '70vh', 'margin': '20px'}
+        )
+    ], style={'padding': '20px', 'maxWidth': '1200px', 'margin': '0 auto'})
 ])
 
 @app.callback(
-    [Output('faturamento-grafico', 'figure'),
-     Output('media-grafico', 'figure'),
-     Output('tabela-dados', 'children')],
-    [Input('estabelecimento-dropdown', 'value'),
-     Input('status-dropdown', 'value')]
+    Output('faturamento-grafico', 'figure'),
+    Input('cliente-dropdown', 'value')
 )
-def update_graph(selected_estabelecimentos, selected_status):
-    filtered_df = df.copy()
+def update_graph(clientes_selecionados):
+    if not clientes_selecionados:
+        return px.scatter(title="Selecione clientes no dropdown acima")
     
-    # Aplicar filtros
-    if selected_status:
-        filtered_df = filtered_df[filtered_df['STATUS'].isin(selected_status)]
-    if selected_estabelecimentos:
-        filtered_df = filtered_df[filtered_df['ESTABELECIMENTO NOME1'].isin(selected_estabelecimentos)]
+    # Filtrar dados
+    filtered_df = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)]
     
-    # Gráfico de faturamento por mês
-    fig1 = px.line(
+    # Criar gráfico
+    fig = px.line(
         filtered_df,
-        x='ESTABELECIMENTO NOME1',
-        y=meses,
-        title='Faturamento Mensal por Estabelecimento',
-        labels={'value': 'Faturamento (R$)', 'variable': 'Mês'}
+        x='Mês',
+        y='Faturamento',
+        color='ESTABELECIMENTO NOME1',
+        markers=True,
+        title='Comparativo de Faturamento Mensal',
+        labels={'Faturamento': 'Faturamento (R$)', 'Mês': 'Mês'},
+        template='plotly_white'
     )
     
-    # Gráfico de média de faturamento
-    fig2 = px.bar(
-        filtered_df,
-        x='ESTABELECIMENTO NOME1',
-        y='Média de Faturamento',
-        title='Média de Faturamento por Estabelecimento',
-        color='STATUS'
+    # Personalizar layout
+    fig.update_layout(
+        hovermode='x unified',
+        legend=dict(
+            title='Clientes',
+            orientation='h',
+            yanchor='bottom',
+            y=1.02,
+            xanchor='right',
+            x=1
+        ),
+        yaxis_tickprefix='R$ ',
+        yaxis_tickformat=',.2f',
+        xaxis={'categoryorder': 'array', 'categoryarray': list(meses.values())}
     )
     
-    # Tabela interativa
-    tabela = dash.dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in filtered_df.columns],
-        data=filtered_df.to_dict('records'),
-        style_table={'overflowX': 'auto'},
-        page_size=10
-    )
-    
-    return fig1, fig2, tabela
+    return fig
 
 if __name__ == '__main__':
-    app.run_server(debug=True)          
+    app.run_server(debug=True)
