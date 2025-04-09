@@ -1,0 +1,11 @@
+o bojetivo principal do projeto é criar uma analise de dados de clientes antigos(?) e novos, que
+serão seguidos constantemente para uma analise de lucro ou pedra.
+
+A analise deve conter um numero previsto de lucro que o cliente deve obter, e que se não for alcançado
+será acionado um alerta para maior atenção com o individuo
+
+clientes são considerados novos durante um periodo de trinta dias
+
+a base de dados ainda não esta pronta, mas é interessante começar sem ela
+
+dash plotly pode ser uma boa opção, porém há outras a serem discutidas
