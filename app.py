@@ -31,10 +31,10 @@ df_long['Mês'] = df_long['Mês'].map(meses)
 # PALETA DE CORES & ESTILOS
 # =====================================
 COLORS = {
-    'background': '#f8f9fa',
-    'text': '#2c3e50',
-    'primary': '#3498db',
-    'secondary': '#95a5a6',
+    'background': '#04011f',  # Nova cor principal
+    'text': '#ffffff',         # Texto em branco para contraste
+    'primary': '#a991f7',      # Nova cor secundária
+    'secondary': '#cbbaf9',  
     'success': '#2ecc71',
     'danger': '#e74c3c',
     'highlight': '#f1c40f',

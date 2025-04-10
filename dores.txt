@@ -6,6 +6,8 @@ será acionado um alerta para maior atenção com o individuo
 
 clientes são considerados novos durante um periodo de trinta dias
 
-a base de dados ainda não esta pronta, mas é interessante começar sem ela
+Multipages será necessário. Uma boa ideia seria ter pelo menos uma três páginas na qual eu trabalharia cada parte da aplicação, uma pagina de input, outra de acompanhamento de dados
+e uma terceira de visão geral dos clientes, onde eu poderia ter uma tabela com todos os dados. Dessa forma seria bem mais organizado
 
-dash plotly pode ser uma boa opção, porém há outras a serem discutidas
+Implementar machine learning é uma ideia super interessante, só que surpresa, eu não faço a menor ideia de como colocar um modelo  de ia não supervisionado numa aplicação web
+
