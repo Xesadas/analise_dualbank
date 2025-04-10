@@ -58,7 +58,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
         
         # Título
         html.Div(className='header', style={'textAlign': 'center', 'marginBottom': '40px'}, children=[
-            html.H1("📈 Dashboard de Faturamento", 
+            html.H1("📈 Análise de Faturamento", 
                    style={'color': COLORS['primary'], 
                           'fontSize': '2.5em',
                           'textShadow': '2px 2px 4px rgba(0,0,0,0.1)'}),
