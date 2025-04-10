@@ -31,10 +31,11 @@ df_long['Mês'] = df_long['Mês'].map(meses)
 # PALETA DE CORES & ESTILOS
 # =====================================
 COLORS = {
-    'background': '#04011f',  # Nova cor principal
+    'background': '#000000',  # Nova cor principal
     'text': '#ffffff',         # Texto em branco para contraste
     'primary': '#a991f7',      # Nova cor secundária
-    'secondary': '#cbbaf9',  
+    'secondary': '#cbbaf9',
+    'secondary': '#95a5a6',
     'success': '#2ecc71',
     'danger': '#e74c3c',
     'highlight': '#f1c40f',
@@ -251,4 +252,4 @@ def update_graph(clientes_selecionados):
     return fig, table_df.to_dict('records'), columns
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8050)
