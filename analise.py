@@ -24,7 +24,11 @@ df_long = df.melt(
 
 
 df_long['Mês'] = df_long['Mês'].map(meses)
-
+df_long['Mês'] = pd.Categorical(  
+    df_long['Mês'], 
+    categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
+    ordered=True
+)
 
 
 
@@ -35,11 +39,11 @@ COLORS = {
     'background': '#000000',
     'text': '#ffffff',
     'primary': '#a991f7',
-    'secondary': '#333333',  # Corrigido para cinza escuro
+    'secondary': '#333333',  
     'success': '#2ecc71',
     'danger': '#e74c3c',
     'highlight': '#f1c40f',
-    'card': '#1a1a1a',  # Alterado para cinza muito escuro
+    'card': '#1a1a1a',  
     'plot_bg': '#1a1a1a',
     'header': '#1a064d'
 }
@@ -158,13 +162,38 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 )
 def update_graph(clientes_selecionados):
     if not clientes_selecionados:
-        return px.scatter(title="Selecione clientes no dropdown acima"), [], []
+        return go.Figure(), [], []
 
-    # Filtrar e ordenar dados
+    # Processamento dos dados
     filtered_df = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)].copy()
     filtered_df.sort_values(['ESTABELECIMENTO NOME1', 'Mês'], inplace=True)
 
-    # Calcular variações
+    # Cálculo da previsão
+    previsoes = []
+    meses_ordem = ['Dezembro', 'Janeiro', 'Fevereiro', 'Março']
+    
+    for cliente in clientes_selecionados:
+        cliente_data = filtered_df[filtered_df['ESTABELECIMENTO NOME1'] == cliente]
+        valores = cliente_data['Faturamento'].values
+        
+        # Modelo de previsão com média ponderada
+        if len(valores) >= 2:
+            pesos = [0.7, 0.3]  # 70% peso no último mês
+            previsao = np.average(valores[-2:], weights=pesos)
+        else:
+            previsao = np.mean(valores) if len(valores) > 0 else 0
+        
+        previsoes.append({
+            'ESTABELECIMENTO NOME1': cliente,
+            'Mês': 'Março',
+            'Faturamento': previsao,
+            'Previsão': True
+        })
+    
+    df_previsao = pd.DataFrame(previsoes)
+    df_completo = pd.concat([filtered_df, df_previsao])
+
+    # Cálculo das variações
     filtered_df['Faturamento Anterior'] = filtered_df.groupby('ESTABELECIMENTO NOME1')['Faturamento'].shift(1)
     filtered_df['Variação R$'] = filtered_df['Faturamento'] - filtered_df['Faturamento Anterior']
     filtered_df['Variação %'] = np.where(
@@ -172,6 +201,8 @@ def update_graph(clientes_selecionados):
         (filtered_df['Variação R$'] / filtered_df['Faturamento Anterior']) * 100,
         np.nan
     )
+
+    # Preparação da tabela
     table_df = filtered_df[filtered_df['Mês'] != 'Dezembro'].copy()
     table_df = table_df[['ESTABELECIMENTO NOME1', 'Mês', 'Variação R$', 'Variação %']]
     table_df['Variação R$'] = table_df['Variação R$'].apply(lambda x: f'R$ {x:,.2f}' if pd.notna(x) else 'N/A')
@@ -184,65 +215,110 @@ def update_graph(clientes_selecionados):
         {'name': 'Variação %', 'id': 'Variação %'}
     ]
 
-    # Criar gráfico
-    fig = px.line(
-        filtered_df,
-        x='Mês',
-        y='Faturamento',
-        color='ESTABELECIMENTO NOME1',
-        markers=True,
-        title='Comparativo de Faturamento Mensal',
-        labels={'Faturamento': 'Faturamento (R$)', 'Mês': 'Mês'},
-        template='plotly_white'
-    )
+    # Criação do gráfico
+    fig = go.Figure()
+    
+    # Cores para diferenciação
+    cores = px.colors.qualitative.Plotly
+    
+    for idx, cliente in enumerate(clientes_selecionados):
+        dados_cliente = df_completo[df_completo['ESTABELECIMENTO NOME1'] == cliente]
+        
+        # Linha histórica
+        fig.add_trace(go.Scatter(
+            x=dados_cliente['Mês'],
+            y=dados_cliente['Faturamento'],
+            name=cliente,
+            mode='lines+markers',
+            line=dict(width=3, color=cores[idx]),
+            marker=dict(size=10, color=cores[idx]),
+            hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
+        ))
+        
+        # Linha de previsão
+        if not dados_cliente[dados_cliente['Mês'] == 'Março'].empty:
+            fig.add_trace(go.Scatter(
+                x=['Fevereiro', 'Março'],
+                y=[
+                    dados_cliente[dados_cliente['Mês'] == 'Fevereiro']['Faturamento'].values[0],
+                    dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]
+                ],
+                mode='lines',
+                line=dict(
+                    dash='dot',
+                    color=cores[idx],
+                    width=2
+                ),
+                showlegend=False,
+                hoverinfo='none'
+            ))
+            
+            # Marcador de previsão
+            fig.add_trace(go.Scatter(
+                x=['Março'],
+                y=[dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]],
+                mode='markers+text',
+                marker=dict(
+                    size=14,
+                    color=cores[idx],
+                    symbol='diamond'
+                ),
+                text=[f'Previsão: R$ {dados_cliente[dados_cliente["Mês"] == "Março"]["Faturamento"].values[0]:,.2f}'],
+                textposition='top center',
+                showlegend=False,
+                hoverinfo='y'
+            ))
 
-    # Adicionar setas de variação
-    for trace in fig.data:
-        client_name = trace.name
-        client_data = filtered_df[filtered_df['ESTABELECIMENTO NOME1'] == client_name]
-        for i, row in client_data.iterrows():
-            if pd.notna(row['Variação R$']):
-                symbol = '▲' if row['Variação R$'] > 0 else '▼'
-                color = 'green' if row['Variação R$'] > 0 else 'red'
-                fig.add_annotation(
-                    x=row['Mês'],
-                    y=row['Faturamento'],
-                    text=symbol,
-                    showarrow=False,
-                    font=dict(color=color, size=12),
-                    xshift=10
-                )
-
-    # Personalizar layout
+    # Atualizar layout
     fig.update_layout(
-        plot_bgcolor=COLORS['plot_bg'],
-        paper_bgcolor=COLORS['card'],
-        font=FONT_STYLE,
+        xaxis=dict(
+            categoryorder='array',
+            categoryarray=meses_ordem,
+            gridcolor=COLORS['secondary'],
+            linecolor=COLORS['primary'],
+            title='Mês'
+        ),
+        yaxis=dict(
+            gridcolor=COLORS['secondary'],
+            linecolor=COLORS['primary'],
+            title='Faturamento (R$)',
+            tickprefix='R$ '
+        ),
         hoverlabel=dict(
-            bgcolor=COLORS['primary'],
+            bgcolor=COLORS['card'],
             font_size=14,
             font_family=FONT_STYLE['family']
         ),
-        xaxis=dict(
-            showgrid=True,
-            gridcolor=COLORS['background'],
-            linecolor=COLORS['secondary']
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor=COLORS['background'],
-            linecolor=COLORS['secondary']
-        ),
-        margin=dict(l=40, r=40, t=80, b=40),
-        title_font=dict(size=20, color=COLORS['primary']),
-        transition={'duration': 300}
+        plot_bgcolor=COLORS['plot_bg'],
+        paper_bgcolor=COLORS['card'],
+        font=dict(color=COLORS['text']),
+        margin=dict(l=50, r=50, t=80, b=50),
+        title='Evolução do Faturamento com Previsão para Março',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
-    
-    # Personalização das linhas
-    for trace in fig.data:
-        trace.line.width = 3
-        trace.line.shape = 'spline'
-        trace.marker.size = 10
-        trace.marker.line.width = 2
+
+    # Adicionar setas de variação
+    for cliente in clientes_selecionados:
+        cliente_data = filtered_df[filtered_df['ESTABELECIMENTO NOME1'] == cliente]
+        for i, row in cliente_data.iterrows():
+            if pd.notna(row['Variação R$']):
+                symbol = '▲' if row['Variação R$'] > 0 else '▼'
+                color = COLORS['success'] if row['Variação R$'] > 0 else COLORS['danger']
+                fig.add_annotation(
+                    x=row['Mês'],
+                    y=row['Faturamento'],
+                    text=f'{symbol} {abs(row["Variação %"]):.1f}%',
+                    showarrow=False,
+                    font=dict(color=color, size=12),
+                    xshift=15,
+                    yshift=10
+                )
     
     return fig, table_df.to_dict('records'), columns
+    
