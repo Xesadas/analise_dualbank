@@ -1,19 +1,176 @@
+/* assets/style.css */
 body {
     margin: 0;
     font-family: 'Open Sans', sans-serif;
+    background-color: #000000; /* Fundo preto para toda a página */
+    color: #ffffff; /* Texto branco padrão */
 }
 
-@keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+.navbar {
+    padding: 1rem;
+    background-color: #000000 !important; /* Navbar preto */
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(255,255,255,0.1); /* Sombra clara para contraste */
+    border-bottom: 1px solid #333333;
 }
 
-.container {
-    animation: fadeIn 0.8s ease-in;
+/* Container da página de dados */
+.container-dados {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #000000; /* Fundo preto */
+    min-height: 100vh;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.titulo-dados {
+    color: #a991f7 !important; /* Roxo claro para o título */
+    margin-bottom: 1.5rem;
+    font-size: 2rem;
+    text-align: center;
+}
+
+.campo-pesquisa {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #a991f7 !important; /* Borda roxa */
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    background-color: #1a1a1a !important; /* Campo de pesquisa escuro */
+    color: #ffffff !important; /* Texto branco */
+}
+
+/* Tabela de dados */
+.dash-table-container {
+    background-color: #1a1a1a !important; /* Fundo escuro para a tabela */
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dash-table-container .dash-spreadsheet-container {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+.dash-table-container th {
+    background-color: #320c8a !important; /* Cabeçalho roxo escuro */
+    color: white !important;
+}
+
+.dash-table-container td {
+    background-color: #262626 !important; /* Células mais claras */
+    color: #ffffff !important;
+}
+
+.dash-table-container .row-even {
+    background-color: #333333 !important; /* Linhas alternadas */
+}
+
+.botao-nav {
+    margin-right: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: #a991f7 !important; /* Botão roxo */
+    color: #000000 !important; /* Texto preto */
+    border-radius: 5px;
+    text-decoration: none !important;
+    transition: all 0.3s;
+    border: 1px solid #ffffff;
+}
+
+.botao-nav:hover {
+    background-color: #8c72d4 !important; /* Roxo mais escuro no hover */
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(169,145,247,0.3); /* Sombra roxa */
+}
+
+/* Ajustes de animação */
+/* Atualize a seção de animações */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Aplique a nova animação a ambas as páginas */
+.container, .container-dados {
+    animation: slideIn 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+    opacity: 0; /* Força o início da animação */
+}
+
+/* Efeito em cascata para elementos internos */
+.container-dados > * {
+    animation: elementFade 0.5s ease-out 0.3s both;
+}
+
+@keyframes elementFade {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ajuste fino na tabela */
+.dash-table-container {
+    opacity: 0;
+    animation: tableAppear 0.4s ease-out 0.4s both;
+}
+
+@keyframes tableAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px) perspective(500px) rotateX(10deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) perspective(500px) rotateX(0);
+    }
+}
+
+.campo-pesquisa, .dash-table-container {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.container-dados:hover .campo-pesquisa {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(169,145,247,0.2);
+}
+
+.custom-dropdown .VirtualizedSelectFocusedOption {
+    background-color: #a991f7 !important;
+    color: #000 !important;
+}
+
+.custom-dropdown .VirtualizedSelectOption {
+    background-color: #1a1a1a;
+    color: #fff !important;
+    padding: 10px !important;
+}
+
+.custom-dropdown .Select-control {
+    background-color: #1a1a1a !important;
+    border-color: #a991f7 !important;
+    color: white !important;
+}
+
+.custom-dropdown .Select-menu-outer {
+    background-color: #1a1a1a !important;
+    border: 1px solid #a991f7 !important;
+}
+
+.custom-dropdown .Select-value-label {
+    color: white !important;
+}
+
+.custom-dropdown .Select-input input {
+    color: white !important;
 }
