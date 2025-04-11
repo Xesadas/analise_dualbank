@@ -7,6 +7,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import openpyxl
 
+register_page(
+    __name__,
+    path='/',
+    name='Analise clientes',
+    title='Analise de clientes'
+)
+
+
 df = pd.read_excel('stores.xlsx', engine='openpyxl')
 
 meses = {

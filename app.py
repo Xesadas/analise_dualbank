@@ -1,12 +1,7 @@
 import dash
-from dash import Dash, html, dcc, Input, Output, callback
+from dash import Dash, html, dcc,register_page
 
-# Importar páginas
-from analise import layout as analise_layout
-from dados import layout as data_layout
-
-# Criar aplicação
-app = Dash(__name__, suppress_callback_exceptions=True)
+app = Dash(__name__, suppress_callback_exceptions=True, use_pages=True)
 server = app.server
 
 # Estilos
@@ -33,21 +28,12 @@ navbar_style = {
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div([
-        dcc.Link('📈 Acompanhamento Clientes', href='/', style=link_style),
-        dcc.Link('📁 Dados Clientes', href='/dados', style=link_style)
+        dcc.Link('📈 Acompanhamento Clientes', href=dash.page_registry['pages.analise']['path'], style=link_style),
+        dcc.Link('📁 Dados Clientes', href=dash.page_registry['pages.dados']['path'], style=link_style),
+        dcc.Link('📝 Cadastro', href=dash.page_registry['pages.inputs']['path'], style=link_style)
     ], style=navbar_style),
-    html.Div(id='page-content')
+    dash.page_container
 ])
 
-# Callback de roteamento
-@callback(
-    Output('page-content', 'children'),
-    Input('url', 'pathname')
-)
-def display_page(pathname):
-    if pathname == '/dados':
-        return data_layout
-    return analise_layout  # Retorna o layout do dashboard importado
-
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)

@@ -1,5 +1,14 @@
+import dash
 from dash import html, dcc, Input, Output, dash_table, callback
 import pandas as pd
+
+
+dash.register_page(
+    __name__,
+    path='/dados',
+    title='Dados Clientes',
+    name='Dados dos clientes'
+)
 
 # Carregar dados
 df = pd.read_excel('stores.xlsx', engine='openpyxl')
