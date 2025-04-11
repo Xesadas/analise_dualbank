@@ -87,22 +87,23 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
             'marginBottom': '30px'
         }, children=[
             dcc.Dropdown(
-            id='cliente-dropdown',
-            options=[{'label': nome, 'value': nome} 
-                 for nome in df['ESTABELECIMENTO NOME1'].unique()],
-            multi=True,
-            placeholder="🔍 Selecione até 5 clientes...",
-            style={
-                'width': '100%',
-                'borderRadius': '8px',
-                'border': f'1px solid {COLORS["primary"]}',
-                'backgroundColor': COLORS['card'],
-                'color': COLORS['text']
-            },
-            className='custom-dropdown',
-            maxHeight=300
+                id='cliente-dropdown',
+                options=[{'label': nome, 'value': nome} 
+                         for nome in df['ESTABELECIMENTO NOME1'].unique()],
+                multi=True,
+                placeholder="🔍 Selecione até 5 clientes...",
+                style={
+                    'width': '100%',
+                    'borderRadius': '8px',
+                    'border': f'1px solid {COLORS["primary"]}',
+                    'backgroundColor': COLORS['card'],
+                    'color': COLORS['text']
+                },
+                className='custom-dropdown',
+                maxHeight=300
             )
         ]),
+        
         # Gráfico
         html.Div(className='graph-card', style={
             'backgroundColor': COLORS['card'],
@@ -132,8 +133,10 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
                     'textAlign': 'center',
                     'padding': '12px',
                     'fontFamily': FONT_STYLE['family'],
-                    'border': f'1px solid {COLORS["background"]}'
-                },
+                    'border': f'1px solid {COLORS["background"]}',
+                    'color': COLORS['text'],  # Garante cor do texto
+                    'backgroundColor': COLORS['card']  # Cor base de fundo
+},
                 style_header={
                     'backgroundColor': COLORS['primary'],
                     'color': 'white',
@@ -154,7 +157,18 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
                     },
                     {
                         'if': {'row_index': 'odd'},
-                        'backgroundColor': '#f8f9fa'
+                        'backgroundColor': '#333333'  # Alterado para cinza escuro
+                    },
+                    # Adicione estas regras para garantir visibilidade
+                    {
+                        'if': {'state': 'active'},
+                        'backgroundColor': 'inherit !important',
+                        'border': 'inherit !important'
+                    },
+                    {
+                        'if': {'state': 'selected'},
+                        'backgroundColor': 'inherit !important',
+                        'border': 'inherit !important'
                     }
                 ]
             )
