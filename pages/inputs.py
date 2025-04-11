@@ -244,4 +244,4 @@ def salvar_cadastro(n_clicks, *args):
         return True, "Cadastro salvo com sucesso!", "success"
     
     except Exception as e:
-        return True, f"Erro ao salvar: {str(e)}", "danger"
+        return True, f"Erro ao salvar: {str(e)}", "danger" #mudança
