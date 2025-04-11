@@ -100,6 +100,15 @@ layout = dbc.Container([
                         ], md=12)
                     ]),
                 ]),
+                html.Div([
+                    html.H5("Representante", className="form-section-title"),
+                    dbc.Input(
+                        id='representante',
+                        placeholder="Nome do Representante*",
+                        type="text",
+                        className='mb-4'
+                    )
+                ]),
                 
                 # Seção de Configurações
                 html.Div([
@@ -167,18 +176,26 @@ layout = dbc.Container([
                         ], md=4)
                     ]),
                 ]),
-                
-                dbc.Button("Salvar Cadastro", 
-                         id='salvar-button', 
-                         className='mt-4',
-                         size="lg")
+                      
+                dbc.Button(
+                    "Salvar Cadastro", 
+                    id='salvar-button', 
+                    className='mt-4',
+                    size="lg"
+                )
             ])
         ], className="cadastro-container shadow-lg")
     ], className="py-5"),
     
-    dbc.Alert(id='alert', is_open=False, duration=4000, className="animate__animated animate__fadeInRight")
+    dbc.Alert(
+        id='alert', 
+        is_open=False, 
+        duration=4000, 
+        className="animate__animated animate__fadeInRight"
+    )
 ], fluid=True)
 
+# No callback de salvamento, substitua a função atual por esta versão corrigida
 @callback(
     Output('alert', 'is_open'),
     Output('alert', 'children'),
@@ -194,13 +211,13 @@ layout = dbc.Container([
 )
 def salvar_cadastro(n_clicks, *args):
     try:
-        # Ler o arquivo existente
-        df = pd.read_excel('stores.xlsx', sheet_name='listagem-de-estabelecimentos')
+        # Ler o arquivo existente com o nome correto da planilha
+        df = pd.read_excel('stores.xlsx', sheet_name='Sheet1', engine='openpyxl')
         
-        # Criar novo registro
+        # Criar novo registro com mapeamento correto das colunas
         novo_registro = {
-            'DATA DE CADASTRO': args[0],
-            'DATA DE APROVAÇÃO': args[1],
+            'DATA DE CADASTRO': args[0].strftime('%d/%m/%Y') if args[0] else '',
+            'DATA DE APROVAÇÃO': args[1].strftime('%d/%m/%Y') if args[1] else '',
             'ESTABELECIMENTO NOME1': args[2],
             'ESTABELECIMENTO CPF/CNPJ': args[3],
             'RESPONSÁVEL DO ESTABELECIMENTO': args[4],
@@ -211,14 +228,18 @@ def salvar_cadastro(n_clicks, *args):
             'PAGSEGURO': args[9],
             'SUB': args[10],
             'PAGSEGURO EMAIL': args[11],
-            'PLANO PAG': args[12]
+            'PLANO PAG': args[12],
+            'STATUS': 'PENDENTE',  # Campo adicional necessário
+            'BANKING': 'NÃO HABILITADO',  # Valor padrão
+            'Média de Faturamento': 0  # Valor padrão
         }
-        
-        # Adicionar novo registro ao DataFrame
+
+        # Adicionar novo registro
         df = pd.concat([df, pd.DataFrame([novo_registro])], ignore_index=True)
         
-        # Salvar de volta no Excel
-        df.to_excel('stores.xlsx', index=False)
+        # Salvar mantendo a estrutura original do arquivo
+        with pd.ExcelWriter('stores.xlsx', engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
         
         return True, "Cadastro salvo com sucesso!", "success"
     
