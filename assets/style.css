@@ -16,12 +16,13 @@ body {
 
 /* Container da página de dados */
 .container-dados {
-    padding: 2rem;
-    max-width: 1200px;
+    padding: 1rem !important;
+    width: 98vw !important;
+    max-width: 98vw !important;
     margin: 0 auto;
-    background-color: #000000; /* Fundo preto */
-    min-height: 100vh;
+    overflow: hidden !important;
 }
+
 
 .titulo-dados {
     color: #a991f7 !important; /* Roxo claro para o título */
@@ -41,26 +42,48 @@ body {
     color: #ffffff !important; /* Texto branco */
 }
 
-/* Tabela de dados */
-.dash-table-container {
-    background-color: #1a1a1a !important; /* Fundo escuro para a tabela */
-    border-radius: 8px;
-    overflow: hidden;
+.dash-spreadsheet-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
 }
 
-.dash-table-container .dash-spreadsheet-container {
-    background-color: #1a1a1a !important;
-    color: #ffffff !important;
+/* Tabela de dados */
+.table-container {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    overflow-x: scroll !important;
+    background: #1a1a1a;
+    border-radius: 10px;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+}
+
+
+.dash-table-container .dash-spreadsheet-inner {
+    width: auto !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
 }
 
 .dash-table-container th {
-    background-color: #320c8a !important; /* Cabeçalho roxo escuro */
-    color: white !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 2;
+    background: #320c8a !important;
 }
 
+
+.dash-table-container th,
 .dash-table-container td {
-    background-color: #262626 !important; /* Células mais claras */
-    color: #ffffff !important;
+    min-width: 140px !important;
+    max-width: 240px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding: 12px !important;
+    font-size: 0.9em !important;
 }
 
 .dash-table-container .row-even {
@@ -431,4 +454,71 @@ body {
     background-color: #a991f7 !important;
     color: #000000 !important;
     font-weight: 600 !important;
+}
+/* Novas regras para tabela responsiva */
+.dash-table-container .dash-spreadsheet-inner {
+    width: auto !important;
+    min-width: 100% !important;
+    display: inline-block !important;
+}
+
+.dash-table-container table {
+    width: auto !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+}
+
+.dash-table-container th, .dash-table-container td {
+    white-space: nowrap !important;
+    min-width: 180px !important;
+    max-width: none !important;
+}
+
+/* Substitua ou adicione estas regras */
+.container-dados {
+    padding: 2rem;
+    max-width: 98vw;  /* Limitar a largura máxima */
+    margin: 0 auto;
+    overflow-x: auto; /* Rolagem apenas no container */
+}
+
+.dash-table-container {
+    background-color: #1a1a1a !important;
+    border-radius: 8px;
+    width: max-content !important; /* Ajuste automático ao conteúdo */
+    min-width: 100%; /* Mínimo de 100% do container */
+    margin: 0 auto;
+}
+
+.dash-table-container .dash-spreadsheet-inner {
+    min-width: 100% !important;
+    max-width: none !important;
+}
+
+/* Ajuste fino das células */
+.dash-table-container th,
+.dash-table-container td {
+    min-width: 180px !important;
+    max-width: 400px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    transition: min-width 0.3s ease;
+}
+
+/* Melhorias na responsividade */
+@media (max-width: 768px) {
+    .container-dados {
+        padding: 1rem;
+    }
+    
+    .dash-table-container th,
+    .dash-table-container td {
+        min-width: 140px !important;
+        padding: 10px !important;
+    }
+    
+    .titulo-dados {
+        font-size: 1.5rem;
+    }
 }
