@@ -143,6 +143,8 @@ body {
 .container-dados:hover .campo-pesquisa {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(169,145,247,0.2);
+    max-width: 98vw !important;  
+    padding: 20px 5px !important;
 }
 
 .custom-dropdown .VirtualizedSelectFocusedOption {
@@ -173,4 +175,260 @@ body {
 
 .custom-dropdown .Select-input input {
     color: white !important;
+}
+
+/* Container principal */
+.main-container {
+    background: linear-gradient(45deg, #000000, #0a0a2e);
+    min-height: 100vh;
+}
+
+/* Header com gradiente */
+.container-header {
+    background: linear-gradient(145deg, #320c8a 0%, #1a064d 100%);
+    padding: 2rem;
+    border-radius: 15px;
+    margin: 20px auto;
+    width: 90%;
+    box-shadow: 0 4px 25px rgba(169,145,247,0.15);
+}
+
+/* Efeito de hover na tabela */
+.dash-table-container tr:hover td {
+    background-color: #3d3d3d !important;
+    transition: background-color 0.3s ease;
+}
+
+/* Botões de paginação personalizados */
+.dash-table-container .previous-next button {
+    background-color: #a991f7 !important;
+    color: #000 !important;
+    border-radius: 5px;
+    margin: 0 5px;
+    transition: all 0.3s;
+}
+
+.dash-table-container .previous-next button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(169,145,247,0.3);
+}
+
+/* Animações personalizadas */
+.animate__fadeInDown {
+    animation: fadeInDown 0.6s ease-out;
+}
+
+.animate__fadeInUp {
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #a991f7;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #8c72d4;
+}
+
+
+/* Adicionar estas regras ao final do arquivo */
+
+/* Estilos específicos para a página de cadastro */
+.cadastro-container {
+    background: #0a0a0a;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 8px 30px rgba(169,145,247,0.15);
+    border: 1px solid #2d2d2d;
+}
+
+.form-section-title {
+    color: #a991f7;
+    border-bottom: 2px solid #320c8a;
+    padding-bottom: 0.5rem;
+    margin: 2rem 0 1.5rem;
+    font-size: 1.25rem;
+    letter-spacing: 0.5px;
+}
+
+/* Estilização de inputs */
+.dbc-input, .DatePickerSingle, .Select-control {
+    background-color: #1a1a1a !important;
+    border: 2px solid #333 !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease;
+}
+
+.dbc-input:focus, .DatePickerSingle:focus, .Select-control:hover {
+    border-color: #a991f7 !important;
+    box-shadow: 0 0 0 3px rgba(169,145,247,0.2) !important;
+}
+
+/* Date picker customizado */
+.DatePickerSingle .CalendarDay__selected {
+    background-color: #a991f7;
+    border-color: #8c72d4;
+}
+
+/* Dropdowns customizados */
+.dbc-dropdown-menu {
+    background-color: #1a1a1a !important;
+    border: 2px solid #333 !important;
+}
+
+.dbc-dropdown-item:hover {
+    background-color: #320c8a !important;
+}
+
+/* Botão de salvar aprimorado */
+#salvar-button {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: linear-gradient(45deg, #8c72d4, #a991f7);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+#salvar-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(169,145,247,0.4);
+}
+
+/* Alertas estilizados */
+.dbc-alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 300px;
+    border: none;
+    border-left: 4px solid;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+/* Ícones e elementos decorativos */
+.input-icon {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.input-icon::after {
+    content: "*";
+    color: #e74c3c;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .cadastro-container {
+        padding: 1rem;
+        margin: 1rem;
+    }
+    
+    .form-section-title {
+        font-size: 1.1rem;
+    }
+}
+
+/* Corrigir estilo dos dropdowns */
+.Select-menu-outer {
+    background-color: #1a1a1a !important;
+    border: 2px solid #a991f7 !important;
+    border-radius: 8px !important;
+    margin-top: 5px !important;
+}
+
+.VirtualizedSelectOption {
+    color: #ffffff !important;
+    background-color: #1a1a1a !important;
+    padding: 10px 15px !important;
+}
+
+.VirtualizedSelectFocusedOption {
+    background-color: #320c8a !important;
+    color: #ffffff !important;
+}
+
+.Select-control {
+    background-color: #1a1a1a !important;
+    border: 2px solid #333 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+.Select-value-label {
+    color: #ffffff !important;
+}
+
+.Select--multi .Select-value {
+    background-color: #320c8a !important;
+    border-color: #a991f7 !important;
+    color: #ffffff !important;
+}
+
+.Select-input input {
+    color: #ffffff !important;
+}
+
+.Select-arrow-zone {
+    color: #a991f7 !important;
+}
+
+.Select-control:hover {
+    border-color: #a991f7 !important;
+    box-shadow: 0 0 0 3px rgba(169,145,247,0.2) !important;
+}
+
+/* Hover nos itens */
+.VirtualizedSelectOption:hover {
+    background-color: #2a2a2a !important;
+}
+
+/* Item selecionado */
+.VirtualizedSelectSelectedOption {
+    background-color: #a991f7 !important;
+    color: #000000 !important;
+    font-weight: 600 !important;
 }
