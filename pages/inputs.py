@@ -13,165 +13,171 @@ dash.register_page(
 
 # Layout da página
 layout = dbc.Container([
-    html.H2("Cadastro de clientes", className="mb-4"),
-    
-    dbc.Row([
-        dbc.Col([
-            dbc.Label("Data de Cadastro"),
-            dcc.DatePickerSingle(
-                id='data-cadastro',
-                date=datetime.today(),
-                display_format='DD/MM/YYYY',
-                className='mb-3'
-            )
-        ], width=4),
+    html.Div([  # Adicionar um wrapper para o conteúdo
+        html.Div([
+            html.H2("Cadastro de Clientes", className="titulo-dados mb-4"),
+            html.Span("Campos obrigatórios*", className="text-muted mb-4 d-block"),
+        ], className="container-header text-center mb-5"),
         
-        dbc.Col([
-            dbc.Label("Data de Aprovação"),
-            dcc.DatePickerSingle(
-                id='data-aprovacao',
-                display_format='DD/MM/YYYY',
-                className='mb-3'
-            )
-        ], width=4)
-    ]),
+        dbc.Card([
+            dbc.CardBody([
+                # Seção de Datas
+                html.Div([
+                    html.H5("Datas", className="form-section-title"),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("Data de Cadastro", className="mb-2"),
+                            dcc.DatePickerSingle(
+                                id='data-cadastro',
+                                date=datetime.today(),
+                                display_format='DD/MM/YYYY',
+                                className='w-100'
+                            )
+                        ], md=6, className="mb-4"),
+                        
+                        dbc.Col([
+                            dbc.Label("Data de Aprovação", className="mb-2"),
+                            dcc.DatePickerSingle(
+                                id='data-aprovacao',
+                                display_format='DD/MM/YYYY',
+                                className='w-100'
+                            )
+                        ], md=6, className="mb-4")
+                    ]),
+                ]),
+                
+                # Seção de Informações do Estabelecimento
+                html.Div([
+                    html.H5("Informações do Estabelecimento", className="form-section-title"),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Input(
+                                id='nome-estabelecimento',
+                                placeholder="Nome do Estabelecimento*",
+                                className='mb-4'
+                            )
+                        ], md=12),
+                        
+                        dbc.Col([
+                            dbc.Input(
+                                id='cpf-cnpj',
+                                placeholder="CPF/CNPJ*",
+                                className='mb-4'
+                            )
+                        ], md=12)
+                    ]),
+                ]),
+                
+                # Seção de Responsável
+                html.Div([
+                    html.H5("Responsável", className="form-section-title"),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Input(
+                                id='responsavel',
+                                placeholder="Responsável do Estabelecimento*",
+                                className='mb-4'
+                            )
+                        ], md=6),
+                        
+                        dbc.Col([
+                            dbc.Input(
+                                id='telefone',
+                                placeholder="Telefone*",
+                                type="tel",
+                                className='mb-4'
+                            )
+                        ], md=6)
+                    ]),
+                    
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Input(
+                                id='cpf-responsavel',
+                                placeholder="CPF do Responsável*",
+                                className='mb-4'
+                            )
+                        ], md=12)
+                    ]),
+                ]),
+                
+                # Seção de Configurações
+                html.Div([
+                    html.H5("Configurações", className="form-section-title"),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Label("Portal"),
+                            dcc.Dropdown(
+                                id='portal',
+                                options=[
+                                    {'label': 'Ativo', 'value': 'ATIVO'},
+                                    {'label': 'Inativo', 'value': 'INATIVO'}
+                                ],
+                                className='mb-4'
+                            )
+                        ], md=4),
+                        
+                        dbc.Col([
+                            dbc.Label("PagSeguro"),
+                            dcc.Dropdown(
+                                id='pagseguro',
+                                options=[
+                                    {'label': 'Habilitado', 'value': 'HABILITADO'},
+                                    {'label': 'Desabilitado', 'value': 'DESABILITADO'}
+                                ],
+                                className='mb-4'
+                            )
+                        ], md=4),
+                        
+                        dbc.Col([
+                            dbc.Label("Sub"),
+                            dcc.Dropdown(
+                                id='sub',
+                                options=[
+                                    {'label': 'Habilitado', 'value': 'HABILITADO'},
+                                    {'label': 'Não Habilitado', 'value': 'NÃO HABILITADO'}
+                                ],
+                                className='mb-4'
+                            )
+                        ], md=4)
+                    ]),
+                    
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Input(
+                                id='pagseguro-email',
+                                placeholder="Email PagSeguro",
+                                type="email",
+                                className='mb-4'
+                            )
+                        ], md=8),
+                        
+                        dbc.Col([
+                            dbc.Label("Plano PagSeguro"),
+                            dcc.Dropdown(
+                                id='plano-pagseguro',
+                                options=[
+                                    {'label': 'NNB', 'value': 'NNB'},
+                                    {'label': 'NNA', 'value': 'NNA'},
+                                    {'label': 'NNC', 'value': 'NNC'},
+                                    {'label': 'NND', 'value': 'NND'}
+                                ],
+                                className='mb-4'
+                            )
+                        ], md=4)
+                    ]),
+                ]),
+                
+                dbc.Button("Salvar Cadastro", 
+                         id='salvar-button', 
+                         className='mt-4',
+                         size="lg")
+            ])
+        ], className="cadastro-container shadow-lg")
+    ], className="py-5"),
     
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='nome-estabelecimento',
-                placeholder="Nome do Estabelecimento",
-                type="text",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='cpf-cnpj',
-                placeholder="CPF/CNPJ",
-                type="text",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='responsavel',
-                placeholder="Responsável do Estabelecimento",
-                type="text",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='telefone',
-                placeholder="Telefone do Responsável",
-                type="tel",
-                className='mb-3'
-            )
-        ),
-        
-        dbc.Col(
-            dbc.Input(
-                id='cpf-responsavel',
-                placeholder="CPF do Responsável",
-                type="text",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='representante',
-                placeholder="Representante",
-                type="text",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col([
-            dbc.Label("Portal"),
-            dcc.Dropdown(
-                id='portal',
-                options=[
-                    {'label': 'Ativo', 'value': 'ATIVO'},
-                    {'label': 'Inativo', 'value': 'INATIVO'}
-                ],
-                className='mb-3'
-            )
-        ], width=4),
-        
-        dbc.Col([
-            dbc.Label("PagSeguro"),
-            dcc.Dropdown(
-                id='pagseguro',
-                options=[
-                    {'label': 'Habilitado', 'value': 'HABILITADO'},
-                    {'label': 'Desabilitado', 'value': 'DESABILITADO'}
-                ],
-                className='mb-3'
-            )
-        ], width=4),
-        
-        dbc.Col([
-            dbc.Label("Sub"),
-            dcc.Dropdown(
-                id='sub',
-                options=[
-                    {'label': 'Habilitado', 'value': 'HABILITADO'},
-                    {'label': 'Não Habilitado', 'value': 'NÃO HABILITADO'}
-                ],
-                className='mb-3'
-            )
-        ], width=4)
-    ]),
-    
-    dbc.Row([
-        dbc.Col(
-            dbc.Input(
-                id='pagseguro-email',
-                placeholder="Email PagSeguro",
-                type="email",
-                className='mb-3'
-            )
-        )
-    ]),
-    
-    dbc.Row([
-        dbc.Col([
-            dbc.Label("Plano PagSeguro"),
-            dcc.Dropdown(
-                id='plano-pagseguro',
-                options=[
-                    {'label': 'NNB', 'value': 'NNB'},
-                    {'label': 'NNA', 'value': 'NNA'},
-                    {'label': 'NNC', 'value': 'NNC'},
-                    {'label': 'NND', 'value': 'NND'}
-                ],
-                className='mb-3'
-            )
-        ], width=6)
-    ]),
-    
-    dbc.Button("Salvar Cadastro", 
-               id='salvar-button', 
-               color="primary", 
-               className='mb-3'),
-    
-    dbc.Alert(id='alert', is_open=False, duration=4000)
-])
+    dbc.Alert(id='alert', is_open=False, duration=4000, className="animate__animated animate__fadeInRight")
+], fluid=True)
 
 @callback(
     Output('alert', 'is_open'),
