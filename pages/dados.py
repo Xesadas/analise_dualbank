@@ -1,6 +1,7 @@
 import dash
-from dash import html, dcc, Input, Output, dash_table, callback
+from dash import html, dcc, Input, Output, dash_table, callback, State
 import pandas as pd
+import dash_bootstrap_components as dbc
 
 dash.register_page(
     __name__,
@@ -12,17 +13,48 @@ dash.register_page(
 # Carregar dados
 df = pd.read_excel('stores.xlsx', engine='openpyxl')
 
+if 'REPRESENTANTE NOME1' in df.columns:
+    # Filtrar valores nulos e vazios
+    reps_clean = df['REPRESENTANTE NOME1'].dropna().replace('', pd.NA).dropna().unique()
+    # Criar opções válidas
+    representantes = [{'label': rep, 'value': rep} for rep in reps_clean if pd.notna(rep) and rep != '']
+else:
+    representantes = []
+
+# Adicione uma opção padrão se necessário
+if representantes:
+    representantes.insert(0, {'label': 'Todos', 'value': 'ALL'})
+
 # Layout da página
 layout = html.Div([
     html.Div([
         html.Div([
             html.H1("📋 Dados Clientes", className="titulo-dados"),
-            dcc.Input(
-                id='search-input',
-                placeholder='🔍 Digite o nome do cliente...',
-                type='text',
-                className='campo-pesquisa'
-            ),
+            
+            dbc.Row([
+                dbc.Col(
+                    dcc.Input(
+                        id='search-input',
+                        placeholder='🔍 Digite o nome do cliente...',
+                        type='text',
+                        className='campo-pesquisa',
+                        style={'width': '100%'}
+                    ),
+                    md=6
+                ),
+                dbc.Col(
+                    dcc.Dropdown(
+                        id='representante-filter',
+                        options=representantes,
+                        placeholder='👤 Filtrar por representante...',
+                        multi=True,
+                        className='dropdown-representantes',
+                        clearable=True
+                    ),
+                    md=6
+                )
+            ], className='mb-4'),
+            
         ], className='container-header animate__animated animate__fadeInDown'),
         
         html.Div([
@@ -36,13 +68,13 @@ layout = html.Div([
                 sort_mode='multi',
                 page_current=0,
                 style_table={
-                    'overflowX': 'auto',
+                    'overflowX': 'scroll',
                     'borderRadius': '10px',
-                    'boxShadow': '0 4px 15px rgba(169,145,247,0.1)',
                     'margin': '20px auto',
-                    'maxWidth': '100%',
-                    'minWidth': '100%',
-                },
+                    'width': '100%',
+                    'maxWidth': '98vw',  # Limite máximo
+                    'minWidth': '100%',  # Força adaptação
+},
                 style_cell={
                     'textAlign': 'left',
                     'padding': '15px',
@@ -50,10 +82,10 @@ layout = html.Div([
                     'backgroundColor': '#262626',
                     'color': 'white',
                     'border': '1px solid #333333',
-                    'minWidth': '180px',  # Aumentado de 120px
-                    'maxWidth': '500px',  # Novo parâmetro adicionado
-                    'whiteSpace': 'normal',  # Permite quebra de linha
-                    'overflow': 'visible'  # Mostra conteúdo completo
+                    'minWidth': '180px',
+                    'whiteSpace': 'normal',
+                    'overflow': 'hidden',
+                    'textOverflow': 'ellipsis'
                 },
                 style_header={
                     'backgroundColor': '#320c8a',
@@ -62,7 +94,9 @@ layout = html.Div([
                     'textTransform': 'uppercase',
                     'border': '1px solid #444444',
                     'fontSize': '14px',
-                    'minWidth': '180px'
+                    'minWidth': '180px',
+                    'position': 'sticky',
+                    'top': 0
                 },
                 style_data_conditional=[
                     {
@@ -87,20 +121,29 @@ layout = html.Div([
                 },
                 css=[{
                     'selector': '.dash-spreadsheet-container .dash-spreadsheet-inner',
-                    'rule': 'width: 100% !important; max-width: none !important;'
+                    'rule': 'width: 100% !important; min-width: 100% !important;'
                 }]
             )
         ], className='table-container animate__animated animate__fadeInUp')
     ], className='container-dados')
 ], className='main-container')
 
-# Callback para filtro
+# Callback para filtros combinados
 @callback(
     Output('full-data-table', 'data'),
-    Input('search-input', 'value')
+    Input('search-input', 'value'),
+    Input('representante-filter', 'value')
 )
-def update_table(search_text):
+def update_table(search_text, selected_representantes):
+    filtered_df = df.copy()
+    
+    # Aplicar filtro de texto
     if search_text:
-        filtered_df = df[df['ESTABELECIMENTO NOME1'].str.contains(search_text, case=False, na=False)]
-        return filtered_df.to_dict('records')
-    return df.to_dict('records')
+        filtered_df = filtered_df[filtered_df['ESTABELECIMENTO NOME1'].str.contains(search_text, case=False, na=False)]
+    
+    # Aplicar filtro de representantes
+    if selected_representantes and 'REPRESENTANTE NOME1' in filtered_df.columns:
+        if 'ALL' not in selected_representantes:
+            filtered_df = filtered_df[filtered_df['REPRESENTANTE NOME1'].isin(selected_representantes)]
+    
+    return filtered_df.to_dict('records')
