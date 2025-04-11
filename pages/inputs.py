@@ -3,6 +3,16 @@ from dash import dcc, html, Input, Output, State, callback, register_page
 import dash_bootstrap_components as dbc
 import pandas as pd
 from datetime import datetime
+import openpyxl
+from openpyxl import Workbook
+import os
+import traceback
+import logging
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 dash.register_page(
     __name__,
@@ -195,7 +205,6 @@ layout = dbc.Container([
     )
 ], fluid=True)
 
-# No callback de salvamento, substitua a função atual por esta versão corrigida
 @callback(
     Output('alert', 'is_open'),
     Output('alert', 'children'),
@@ -210,38 +219,132 @@ layout = dbc.Container([
     prevent_initial_call=True
 )
 def salvar_cadastro(n_clicks, *args):
+    file_path = 'stores.xlsx'
+    
     try:
-        # Ler o arquivo existente com o nome correto da planilha
-        df = pd.read_excel('stores.xlsx', sheet_name='Sheet1', engine='openpyxl')
+        # 1. Verificação de dados de entrada
+        logging.debug(f"Dados recebidos: {args}")
         
-        # Criar novo registro com mapeamento correto das colunas
+        # 2. Processamento de datas com fallbacks
+        def processar_data(date_value):
+            if not date_value:
+                return None
+            try:
+                if isinstance(date_value, datetime):
+                    return date_value.date()
+                return datetime.fromisoformat(date_value).date()
+            except Exception as e:
+                logging.error(f"Erro conversão data: {str(e)}")
+                return None
+
+        data_cadastro = processar_data(args[0])
+        data_aprovacao = processar_data(args[1])
+        
+        logging.debug(f"Datas convertidas - Cadastro: {data_cadastro} | Aprovação: {data_aprovacao}")
+
+        # 3. Criar dicionário com tipos explícitos
         novo_registro = {
-            'DATA DE CADASTRO': args[0].strftime('%d/%m/%Y') if args[0] else '',
-            'DATA DE APROVAÇÃO': args[1].strftime('%d/%m/%Y') if args[1] else '',
-            'ESTABELECIMENTO NOME1': args[2],
-            'ESTABELECIMENTO CPF/CNPJ': args[3],
-            'RESPONSÁVEL DO ESTABELECIMENTO': args[4],
-            'RESPONSÁVEL TELEFONE': args[5],
-            'RESPONSÁVEL CPF/CNPJ': args[6],
-            'REPRESENTANTE NOME1': args[7],
+            'DATA DE CADASTRO': data_cadastro,
+            'DATA DE APROVAÇÃO': data_aprovacao,
+            'ESTABELECIMENTO NOME1': str(args[2]) if args[2] else None,
+            'ESTABELECIMENTO CPF/CNPJ': str(args[3]) if args[3] else None,
+            'RESPONSÁVEL DO ESTABELECIMENTO': str(args[4]) if args[4] else None,
+            'RESPONSÁVEL TELEFONE': str(args[5]) if args[5] else None,
+            'RESPONSÁVEL CPF/CNPJ': str(args[6]) if args[6] else None,
+            'REPRESENTANTE NOME1': str(args[7]) if args[7] else None,
             'PORTAL': args[8],
             'PAGSEGURO': args[9],
             'SUB': args[10],
-            'PAGSEGURO EMAIL': args[11],
+            'PAGSEGURO EMAIL': str(args[11]) if args[11] else None,
             'PLANO PAG': args[12],
-            'STATUS': 'PENDENTE',  # Campo adicional necessário
-            'BANKING': 'NÃO HABILITADO',  # Valor padrão
-            'Média de Faturamento': 0  # Valor padrão
+            'STATUS': 'PENDENTE',
+            'BANKING': 'NÃO HABILITADO',
+            'Média de Faturamento': 0.0
         }
 
-        # Adicionar novo registro
-        df = pd.concat([df, pd.DataFrame([novo_registro])], ignore_index=True)
-        
-        # Salvar mantendo a estrutura original do arquivo
-        with pd.ExcelWriter('stores.xlsx', engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            df.to_excel(writer, sheet_name='Sheet1', index=False)
-        
-        return True, "Cadastro salvo com sucesso!", "success"
-    
+        # 4. Criar DataFrame com tipos explícitos
+        dtypes = {
+            'DATA DE CADASTRO': 'datetime64[ns]',
+            'DATA DE APROVAÇÃO': 'datetime64[ns]',
+            'ESTABELECIMENTO NOME1': 'object',
+            'ESTABELECIMENTO CPF/CNPJ': 'object',
+            'RESPONSÁVEL DO ESTABELECIMENTO': 'object',
+            'RESPONSÁVEL TELEFONE': 'object',
+            'RESPONSÁVEL CPF/CNPJ': 'object',
+            'REPRESENTANTE NOME1': 'object',
+            'PORTAL': 'category',
+            'PAGSEGURO': 'category',
+            'SUB': 'category',
+            'PAGSEGURO EMAIL': 'object',
+            'PLANO PAG': 'category',
+            'STATUS': 'category',
+            'BANKING': 'category',
+            'Média de Faturamento': 'float64'
+        }
+
+        # 5. Carregar ou criar novo arquivo
+        if os.path.exists(file_path):
+            try:
+                df_existente = pd.read_excel(
+                    file_path,
+                    dtype=dtypes,
+                    parse_dates=['DATA DE CADASTRO', 'DATA DE APROVAÇÃO'],
+                    engine='openpyxl'
+                )
+                df_existente = df_existente.astype(dtypes)
+            except Exception as e:
+                logging.error(f"Erro ao carregar arquivo: {str(e)}")
+                return True, "Erro ao ler arquivo existente", "danger"
+        else:
+            df_existente = pd.DataFrame(columns=dtypes.keys()).astype(dtypes)
+
+        # 6. Adicionar novo registro
+        df_novo = pd.DataFrame([novo_registro]).astype(dtypes)
+        df_final = pd.concat([df_existente, df_novo], ignore_index=True)
+
+        # 7. Salvar e formatar o arquivo
+        with pd.ExcelWriter(
+            file_path,
+            engine='openpyxl',
+            mode='a' if os.path.exists(file_path) else 'w',
+            if_sheet_exists='overlay'
+        ) as writer:
+            # Salvar dados
+            df_final.to_excel(writer, index=False, sheet_name='Sheet1')
+            
+            # Acessar objetos do openpyxl
+            workbook = writer.book
+            worksheet = writer.sheets['Sheet1']
+            
+            # Estilização
+            header_fill = PatternFill(start_color='1a064d', end_color='1a064d', fill_type='solid')
+            header_font = Font(color='FFFFFF', bold=True)
+            header_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            # Aplicar estilo ao cabeçalho
+            for cell in worksheet[1]:  # Linha 1 é o cabeçalho
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.border = header_border
+                cell.alignment = Alignment(wrap_text=True)
+            
+            # Ajustar largura das colunas
+            worksheet.column_dimensions['A'].width = 15
+            worksheet.column_dimensions['B'].width = 15
+            for col in ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']:
+                worksheet.column_dimensions[col].width = 20
+
+            # Remover linha vazia do pandas
+            worksheet.delete_rows(1)
+
+        logging.debug("Arquivo salvo com sucesso!")
+        return True, "Dados salvos com sucesso!", "success"
+
     except Exception as e:
-        return True, f"Erro ao salvar: {str(e)}", "danger" #mudança
+        logging.error(f"Erro completo: {traceback.format_exc()}")
+        return True, f"Erro crítico: {str(e)}", "danger"
