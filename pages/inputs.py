@@ -10,8 +10,6 @@ import traceback
 import logging
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
-
-
 logging.basicConfig(level=logging.DEBUG)
 
 dash.register_page(
@@ -21,9 +19,17 @@ dash.register_page(
     name='Cadastro'
 )
 
-# Layout inputs
+# Estilos
+transaction_style = {
+    'border': '1px solid #e0e0e0',
+    'borderRadius': '10px',
+    'padding': '20px',
+    'marginTop': '30px'
+}
+
+
 layout = dbc.Container([
-    html.Div([  # Adicionar um wrapper para o conteúdo
+    html.Div([
         html.Div([
             html.H2("Cadastro de Clientes", className="titulo-dados mb-4"),
             html.Span("Campos obrigatórios*", className="text-muted mb-4 d-block"),
@@ -31,7 +37,7 @@ layout = dbc.Container([
         
         dbc.Card([
             dbc.CardBody([
-                # Seção de Datas
+                # Seção de Cadastro (original)
                 html.Div([
                     html.H5("Datas", className="form-section-title"),
                     dbc.Row([
@@ -58,7 +64,6 @@ layout = dbc.Container([
                     ]),
                 ]),
                 
-                # Seção de Informações do Estabelecimento
                 html.Div([
                     html.H5("Informações do Estabelecimento", className="form-section-title"),
                     dbc.Row([
@@ -80,7 +85,6 @@ layout = dbc.Container([
                     ]),
                 ]),
                 
-                # Seção de Responsável
                 html.Div([
                     html.H5("Responsável", className="form-section-title"),
                     dbc.Row([
@@ -112,6 +116,7 @@ layout = dbc.Container([
                         ], md=12)
                     ]),
                 ]),
+                
                 html.Div([
                     html.H5("Representante", className="form-section-title"),
                     dbc.Input(
@@ -122,7 +127,6 @@ layout = dbc.Container([
                     )
                 ]),
                 
-                # Seção de Configurações
                 html.Div([
                     html.H5("Configurações", className="form-section-title"),
                     dbc.Row([
@@ -196,17 +200,168 @@ layout = dbc.Container([
                     size="lg"
                 )
             ])
-        ], className="cadastro-container shadow-lg")
+        ], className="cadastro-container shadow-lg mb-5"),
+        
+        # Nova Seção de Transações
+        dbc.Card([
+            dbc.CardBody([
+                html.H5("Registro de Transações Diárias", className="form-section-title"),
+                
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Selecionar Cliente"),
+                        dcc.Dropdown(
+                            id='cliente-transacao',
+                            options=[],
+                            placeholder="CPF/CNPJ do Cliente*",
+                            className='mb-3'
+                        )
+                    ], md=6),
+                    
+                    dbc.Col([
+                        dbc.Label("Data da Transação"),
+                        dcc.DatePickerSingle(
+                            id='data-transacao',
+                            date=datetime.today(),
+                            display_format='DD/MM/YYYY',
+                            className='w-100 mb-3'
+                        )
+                    ], md=3),
+                    
+                    dbc.Col([
+                        dbc.Label("Valor (R$)"),
+                        dbc.Input(
+                            id='valor-transacao',
+                            type='number',
+                            step=0.01,
+                            placeholder="0.00",
+                            className='mb-3'
+                        )
+                    ], md=3)
+                ]),
+                
+                dbc.Button(
+                    "Registrar Transação",
+                    id='salvar-transacao',
+                    color="secondary",
+                    className='mt-2'
+                )
+            ])
+        ], style=transaction_style, className="shadow-sm")
+        
     ], className="py-5"),
+    
+    dcc.Store(id='clientes-store', storage_type='memory'),
     
     dbc.Alert(
         id='alert', 
         is_open=False, 
         duration=4000, 
         className="animate__animated animate__fadeInRight"
+    ),
+    
+    dbc.Alert(
+        id='alert-transacao', 
+        is_open=False, 
+        duration=4000,
+        className="animate__animated animate__fadeInRight"
     )
 ], fluid=True)
 
+@callback(
+    Output('cliente-transacao', 'options'),
+    Input('clientes-store', 'data')
+)
+def carregar_clientes(_):
+    file_path = 'stores.xlsx'
+    try:
+        if os.path.exists(file_path):
+            df = pd.read_excel(file_path, 
+                             sheet_name='Cadastros', 
+                             usecols=['ESTABELECIMENTO CPF/CNPJ'])
+            return [{'label': cnpj, 'value': cnpj} for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].unique()]
+        return []
+    except Exception as e:
+        logging.error(f"Erro ao carregar clientes: {str(e)}")
+        return []
+
+@callback(
+    Output('alert-transacao', 'is_open'),
+    Output('alert-transacao', 'children'),
+    Output('alert-transacao', 'color'),
+    Input('salvar-transacao', 'n_clicks'),
+    [
+        State('cliente-transacao', 'value'),
+        State('data-transacao', 'date'),
+        State('valor-transacao', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def salvar_transacao(n_clicks, cliente, data_transacao, valor):
+    file_path = 'stores.xlsx'
+    
+    if not all([cliente, data_transacao, valor]):
+        return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
+    
+    try:
+        data_transacao = datetime.strptime(data_transacao, '%Y-%m-%d').strftime('%d/%m/%Y')
+        valor = float(valor)
+        
+        nova_transacao = {
+            'CPF/CNPJ': cliente,
+            'DATA': data_transacao,
+            'VALOR (R$)': valor,
+            'STATUS': 'PROCESSADO'
+        }
+        
+        sheets = []
+        if os.path.exists(file_path):
+            with pd.ExcelFile(file_path) as excel:
+                sheets = excel.sheet_names
+                
+            if 'Transacoes' in sheets:
+                df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes')
+            else:
+                df_transacoes = pd.DataFrame()
+        else:
+            df_transacoes = pd.DataFrame()
+        
+        df_nova = pd.DataFrame([nova_transacao])
+        df_final = pd.concat([df_transacoes, df_nova], ignore_index=True)
+        
+        with pd.ExcelWriter(
+            file_path,
+            engine='openpyxl',
+            mode='a' if 'Cadastros' in sheets else 'w',
+            if_sheet_exists='replace'
+        ) as writer:
+            if 'Cadastros' in sheets:
+                df_cadastros = pd.read_excel(file_path, sheet_name='Cadastros')
+                df_cadastros.to_excel(writer, index=False, sheet_name='Cadastros')
+            
+            df_final.to_excel(writer, index=False, sheet_name='Transacoes')
+            
+            workbook = writer.book
+            if 'Transacoes' in workbook.sheetnames:
+                ws = workbook['Transacoes']
+                
+                header_fill = PatternFill(start_color='2d5f8a', end_color='2d5f8a', fill_type='solid')
+                header_font = Font(color='FFFFFF', bold=True)
+                
+                for cell in ws[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center')
+                
+                column_widths = {'A': 20, 'B': 15, 'C': 15, 'D': 15}
+                for col, width in column_widths.items():
+                    ws.column_dimensions[col].width = width
+        
+        return True, f"Transação de R${valor:.2f} registrada com sucesso! ✅", "success"
+    
+    except Exception as e:
+        logging.error(f"Erro ao salvar transação: {str(e)}")
+        return True, f"Erro: {str(e)} ❌", "danger"
 
 @callback(
     Output('alert', 'is_open'),
@@ -237,22 +392,18 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
     file_path = 'stores.xlsx'
     
     try:
-        # Função para processar datas
         def processar_data(date_str):
             if not date_str:
                 return None
             try:
-                # Converter de string ISO (YYYY-MM-DD) para date
                 return datetime.strptime(date_str, '%Y-%m-%d').date()
             except Exception as e:
                 logging.error(f"Erro na conversão da data: {str(e)}")
                 return None
 
-        # Processar datas
         data_cadastro_dt = processar_data(data_cadastro)
         data_aprovacao_dt = processar_data(data_aprovacao)
 
-        # Criar dicionário com novo registro
         novo_registro = {
             'DATA DE CADASTRO': data_cadastro_dt,
             'DATA DE APROVAÇÃO': data_aprovacao_dt,
@@ -275,33 +426,36 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             'Faturamento Fevereiro': 0
         }
 
-        # Carregar ou criar arquivo Excel
+        sheets = []
         if os.path.exists(file_path):
-            df_existente = pd.read_excel(
-                file_path,
-                parse_dates=['DATA DE CADASTRO', 'DATA DE APROVAÇÃO'],
-                engine='openpyxl'
-            )
+            with pd.ExcelFile(file_path) as excel:
+                sheets = excel.sheet_names
+                
+            if 'Cadastros' in sheets:
+                df_existente = pd.read_excel(file_path, sheet_name='Cadastros')
+            else:
+                df_existente = pd.DataFrame()
         else:
             df_existente = pd.DataFrame()
 
-        # Criar DataFrame com novo registro
         df_novo = pd.DataFrame([novo_registro])
         df_final = pd.concat([df_existente, df_novo], ignore_index=True)
 
-        # Salvar com formatação
         with pd.ExcelWriter(
             file_path,
             engine='openpyxl',
-            mode='w'
+            mode='a' if sheets else 'w',
+            if_sheet_exists='replace'
         ) as writer:
-            df_final.to_excel(writer, index=False, sheet_name='Sheet1')
+            if 'Transacoes' in sheets:
+                df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes')
+                df_transacoes.to_excel(writer, index=False, sheet_name='Transacoes')
             
-            # Acessar objetos do openpyxl para formatação
+            df_final.to_excel(writer, index=False, sheet_name='Cadastros')
+            
             workbook = writer.book
-            worksheet = writer.sheets['Sheet1']
+            worksheet = writer.sheets['Cadastros']
             
-            # Estilização do cabeçalho
             header_fill = PatternFill(start_color='1a064d', end_color='1a064d', fill_type='solid')
             header_font = Font(color='FFFFFF', bold=True)
             header_border = Border(
@@ -311,20 +465,17 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
                 bottom=Side(style='thin')
             )
             
-            # Aplicar estilo ao cabeçalho
-            for cell in worksheet[1]:  # Linha 1 é o cabeçalho
+            for cell in worksheet[1]:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.border = header_border
                 cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             
-            # Formatar colunas de data
             date_format = 'DD/MM/YYYY'
             for col in ['A', 'B']:
-                for cell in worksheet[col][1:]:  # Começa da segunda linha
+                for cell in worksheet[col][1:]:
                     cell.number_format = date_format
             
-            # Ajustar largura das colunas
             column_widths = {
                 'A': 15, 'B': 15, 'C': 25, 'D': 20, 'E': 25,
                 'F': 15, 'G': 20, 'H': 20, 'I': 12, 'J': 12,

@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
 import dash
-from dash import dcc, html, Input, Output, dash_table, page_container, callback, register_page
-from dash.dependencies import Input, Output
+from dash import dcc, html, Input, Output, dash_table, callback, register_page
+import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 import openpyxl
 
 register_page(
@@ -14,40 +15,77 @@ register_page(
     title='Analise de clientes'
 )
 
+# =====================================
+# CARREGAMENTO DE DADOS
+# =====================================
+try:
+    # Carregar dados de cadastros
+    df_cadastros = pd.read_excel('stores.xlsx', sheet_name='Sheet1', engine='openpyxl')
+    
+    # Carregar transações diárias
+    df_transacoes = pd.read_excel('stores.xlsx', sheet_name='Transacoes', engine='openpyxl')
+    df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
+    
+    # Mesclar dados para obter nomes
+    df = pd.merge(df_transacoes, 
+                df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
+                left_on='CPF/CNPJ',
+                right_on='ESTABELECIMENTO CPF/CNPJ',
+                how='left')
 
-df = pd.read_excel('stores.xlsx', engine='openpyxl')
+except Exception as e:
+    print(f"Erro ao carregar dados: {str(e)}")
+    df_cadastros = pd.DataFrame()
+    df_transacoes = pd.DataFrame()
+    df = pd.DataFrame()
 
-options = [{'label': str(nome), 'value': str(nome)} 
-           for nome in df['ESTABELECIMENTO NOME1'].unique() 
-           if pd.notna(nome) and str(nome).strip() != '']
-
+# =====================================
+# PREPARAÇÃO DOS DADOS MENSAL
+# =====================================
 meses = {
     'Faturamento Dezembro': 'Dezembro',
     'Faturamento Janeiro': 'Janeiro',
     'Faturamento Fevereiro': 'Fevereiro'
 }
 
-df_long = df.melt(
-    id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
-    value_vars=meses.keys(),
-    var_name='Mês',
-    value_name='Faturamento'
-)
+if not df_cadastros.empty:
+    df_long = df_cadastros.melt(
+        id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
+        value_vars=meses.keys(),
+        var_name='Mês',
+        value_name='Faturamento'
+    )
+    
+    df_long['Mês'] = df_long['Mês'].map(meses)
+    df_long['Mês'] = pd.Categorical(
+        df_long['Mês'], 
+        categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
+        ordered=True
+    )
+else:
+    df_long = pd.DataFrame()
 
-
-df_long['Mês'] = df_long['Mês'].map(meses)
-df_long['Mês'] = pd.Categorical(  
-    df_long['Mês'], 
-    categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
-    ordered=True
-)
-
-if not options:
-    options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
 
 
 # =====================================
-# PALETA DE CORES & ESTILOS
+# PREPARAÇÃO DOS DADOS DIÁRIOS 
+# =====================================
+def prepare_daily_data():
+    if not df.empty:
+        daily_df = df.groupby(['ESTABELECIMENTO NOME1', pd.Grouper(key='DATA', freq='D')]).agg({
+            'VALOR (R$)': 'sum',
+            'CPF/CNPJ': 'count'
+        }).rename(columns={
+            'VALOR (R$)': 'Faturamento Diário',
+            'CPF/CNPJ': 'Transações'
+        }).reset_index()
+        return daily_df
+    return pd.DataFrame()
+
+daily_data = prepare_daily_data() 
+
+# =====================================
+# PALETA DE CORES & ESTILOS 
 # =====================================
 COLORS = {
     'background': '#000000',
@@ -68,8 +106,15 @@ FONT_STYLE = {
     'color': COLORS['text']
 }
 
+options = [{'label': str(nome), 'value': str(nome)} 
+           for nome in df_cadastros['ESTABELECIMENTO NOME1'].unique() 
+           if pd.notna(nome) and str(nome).strip() != '']
+
+if not options:
+    options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
+
 # =====================================
-# LAYOUT PRINCIPAL
+# LAYOUT COMPLETO (CORRIGIDO)
 # =====================================
 layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '100vh'}, children=[
     html.Div(className='container', style={'padding': '30px', 'maxWidth': '1200px', 'margin': '0 auto'}, children=[
@@ -91,36 +136,55 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
             'borderRadius': '15px',
             'boxShadow': '0 4px 6px rgba(0,0,0,0.1)',
             'marginBottom': '30px'
-}, children=[
-    dcc.Dropdown(
-        id='cliente-dropdown',
-        options=options,
-        multi=True,
-        placeholder="🔍 Selecione o cliente desejado...",
-        style={
-            'width': '100%',
-            'borderRadius': '8px',
-            'border': f'1px solid {COLORS["primary"]}',
-            'backgroundColor': COLORS['card'],
-            'color': COLORS['text']
-        },
-        className='custom-dropdown',
-        maxHeight=300
-    )
-]),  
-
-# Gráfico
-html.Div(className='graph-card', style={
-            'backgroundColor': COLORS['card'],
-            'padding': '20px',
-            'borderRadius': '15px',
-            'boxShadow': '0 4px 6px rgba(0,0,0,0.1)'
         }, children=[
-            dcc.Graph(
-                id='faturamento-grafico',
-                style={'height': '65vh'},
-                config={'displayModeBar': True, 'scrollZoom': False}
+            dcc.Dropdown(
+                id='cliente-dropdown',
+                options=options,
+                multi=True,
+                placeholder="🔍 Selecione o cliente desejado...",
+                style={
+                    'width': '100%',
+                    'borderRadius': '8px',
+                    'border': f'1px solid {COLORS["primary"]}',
+                    'backgroundColor': COLORS['card'],
+                    'color': COLORS['text']
+                }
+            ),
+            dcc.DatePickerRange(
+                id='date-range',
+                start_date=datetime.today() - timedelta(days=30),
+                end_date=datetime.today(),
+                display_format='DD/MM/YYYY',
+                style={'marginTop': '15px'}
             )
+        ]),
+        
+        # Gráficos
+        html.Div(className='graph-container', children=[
+            html.Div(className='graph-card', style={
+                'backgroundColor': COLORS['card'],
+                'padding': '20px',
+                'borderRadius': '15px',
+                'marginBottom': '20px'
+            }, children=[
+                dcc.Graph(
+                    id='grafico-mensal',
+                    style={'height': '400px'},
+                    config={'displayModeBar': False}
+                )
+            ]),
+            
+            html.Div(className='graph-card', style={
+                'backgroundColor': COLORS['card'],
+                'padding': '20px',
+                'borderRadius': '15px'
+            }, children=[
+                dcc.Graph(
+                    id='grafico-diario',
+                    style={'height': '400px'},
+                    config={'displayModeBar': False}
+                )
+            ])
         ]),
         
         # Tabela
@@ -139,9 +203,9 @@ html.Div(className='graph-card', style={
                     'padding': '12px',
                     'fontFamily': FONT_STYLE['family'],
                     'border': f'1px solid {COLORS["background"]}',
-                    'color': COLORS['text'],  # Garante cor do texto
-                    'backgroundColor': COLORS['card']  # Cor base de fundo
-},
+                    'color': COLORS['text'],
+                    'backgroundColor': COLORS['card']
+                },
                 style_header={
                     'backgroundColor': COLORS['primary'],
                     'color': 'white',
@@ -162,18 +226,7 @@ html.Div(className='graph-card', style={
                     },
                     {
                         'if': {'row_index': 'odd'},
-                        'backgroundColor': '#333333'  # Alterado para cinza escuro
-                    },
-                    # Adicione estas regras para garantir visibilidade
-                    {
-                        'if': {'state': 'active'},
-                        'backgroundColor': 'inherit !important',
-                        'border': 'inherit !important'
-                    },
-                    {
-                        'if': {'state': 'selected'},
-                        'backgroundColor': 'inherit !important',
-                        'border': 'inherit !important'
+                        'backgroundColor': '#333333'
                     }
                 ]
             )
@@ -182,176 +235,207 @@ html.Div(className='graph-card', style={
 ])
 
 @callback(
-    Output('faturamento-grafico', 'figure'),
+    Output('grafico-mensal', 'figure'),
+    Output('grafico-diario', 'figure'),
     Output('tabela-variacao', 'data'),
     Output('tabela-variacao', 'columns'),
-    Input('cliente-dropdown', 'value')
+    Input('cliente-dropdown', 'value'),
+    Input('date-range', 'start_date'),
+    Input('date-range', 'end_date')
 )
-def update_graph(clientes_selecionados):
-    # Verificar se há dados válidos
+def update_analysis(clientes_selecionados, start_date, end_date):
+    # Inicialização padrão mantendo estilo original
+    fig_mensal = go.Figure()
+    fig_diario = go.Figure()
+    table_data = []
+    columns = []
+
+    # Verificação de seleção vazia (estilo original)
     if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
-        return go.Figure(), [], []
+        return fig_mensal, fig_diario, [], []
 
-    # Verificar dados faltantes
-    valid_clients = [c for c in clientes_selecionados if c in df['ESTABELECIMENTO NOME1'].values]
-    if not valid_clients:
-        return go.Figure(), [], []
-
-    # Processamento dos dados
-    filtered_df = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)].copy()
-    filtered_df.sort_values(['ESTABELECIMENTO NOME1', 'Mês'], inplace=True)
-
-    # Cálculo da previsão
-    previsoes = []
-    meses_ordem = ['Dezembro', 'Janeiro', 'Fevereiro', 'Março']
-    
-    for cliente in clientes_selecionados:
-        cliente_data = filtered_df[filtered_df['ESTABELECIMENTO NOME1'] == cliente]
-        valores = cliente_data['Faturamento'].values
-        
-        # Modelo de previsão com média ponderada
-        if len(valores) >= 2:
-            pesos = [0.7, 0.3]  # 70% peso no último mês
-            previsao = np.average(valores[-2:], weights=pesos)
-        else:
-            previsao = np.mean(valores) if len(valores) > 0 else 0
-        
-        previsoes.append({
-            'ESTABELECIMENTO NOME1': cliente,
-            'Mês': 'Março',
-            'Faturamento': previsao,
-            'Previsão': True
-        })
-    
-    df_previsao = pd.DataFrame(previsoes)
-    df_completo = pd.concat([filtered_df, df_previsao])
-
-    # Cálculo das variações
-    filtered_df['Faturamento Anterior'] = filtered_df.groupby('ESTABELECIMENTO NOME1')['Faturamento'].shift(1)
-    filtered_df['Variação R$'] = filtered_df['Faturamento'] - filtered_df['Faturamento Anterior']
-    filtered_df['Variação %'] = np.where(
-        filtered_df['Faturamento Anterior'] != 0,
-        (filtered_df['Variação R$'] / filtered_df['Faturamento Anterior']) * 100,
-        np.nan
-    )
-
-    # Preparação da tabela
-    table_df = filtered_df[filtered_df['Mês'] != 'Dezembro'].copy()
-    table_df = table_df[['ESTABELECIMENTO NOME1', 'Mês', 'Variação R$', 'Variação %']]
-    table_df['Variação R$'] = table_df['Variação R$'].apply(lambda x: f'R$ {x:,.2f}' if pd.notna(x) else 'N/A')
-    table_df['Variação %'] = table_df['Variação %'].apply(lambda x: f'{x:.2f}%' if pd.notna(x) else 'N/A')
-
-    columns = [
-        {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
-        {'name': 'Mês', 'id': 'Mês'},
-        {'name': 'Variação R$', 'id': 'Variação R$'},
-        {'name': 'Variação %', 'id': 'Variação %'}
-    ]
-
-    # Criação do gráfico
-    fig = go.Figure()
-    
-    # Cores para diferenciação
-    cores = px.colors.qualitative.Plotly
-    
-    for idx, cliente in enumerate(clientes_selecionados):
-        dados_cliente = df_completo[df_completo['ESTABELECIMENTO NOME1'] == cliente]
-        
-        # Linha histórica
-        fig.add_trace(go.Scatter(
-            x=dados_cliente['Mês'],
-            y=dados_cliente['Faturamento'],
-            name=cliente,
-            mode='lines+markers',
-            line=dict(width=3, color=cores[idx]),
-            marker=dict(size=10, color=cores[idx]),
-            hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
-        ))
-        
-        # Linha de previsão
-        if not dados_cliente[dados_cliente['Mês'] == 'Março'].empty:
-            fig.add_trace(go.Scatter(
-                x=['Fevereiro', 'Março'],
-                y=[
-                    dados_cliente[dados_cliente['Mês'] == 'Fevereiro']['Faturamento'].values[0],
-                    dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]
-                ],
-                mode='lines',
-                line=dict(
-                    dash='dot',
-                    color=cores[idx],
-                    width=2
-                ),
-                showlegend=False,
-                hoverinfo='none'
-            ))
+    try:
+        # =====================================
+        # PROCESSAMENTO MENSAL COM PREVISÃO (mesmo estilo do callback antigo)
+        # =====================================
+        if not df_long.empty:
+            # Filtragem e cálculos originais
+            filtered_mensal = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)].copy()
+            filtered_mensal['Faturamento Anterior'] = filtered_mensal.groupby('ESTABELECIMENTO NOME1')['Faturamento'].shift(1)
             
-            # Marcador de previsão
-            fig.add_trace(go.Scatter(
-                x=['Março'],
-                y=[dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]],
-                mode='markers+text',
-                marker=dict(
-                    size=14,
-                    color=cores[idx],
-                    symbol='diamond'
+            # Adicionando previsão para Março como no callback original
+            previsoes = []
+            for cliente in clientes_selecionados:
+                cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
+                valores = cliente_data['Faturamento'].values
+                
+                # Cálculo de previsão idêntico ao anterior
+                if len(valores) >= 2:
+                    pesos = [0.7, 0.3]
+                    previsao = np.average(valores[-2:], weights=pesos)
+                else:
+                    previsao = np.mean(valores) if len(valores) > 0 else 0
+                
+                previsoes.append({
+                    'ESTABELECIMENTO NOME1': cliente,
+                    'Mês': 'Março',
+                    'Faturamento': previsao,
+                    'Previsão': True
+                })
+            
+            # Mesclando dados reais + previsão
+            df_previsao = pd.DataFrame(previsoes)
+            df_completo = pd.concat([filtered_mensal, df_previsao])
+            
+            # Criação do gráfico mensal com detalhes visuais originais
+            meses_ordem = ['Dezembro', 'Janeiro', 'Fevereiro', 'Março']
+            cores = px.colors.qualitative.Plotly
+            
+            for idx, cliente in enumerate(clientes_selecionados):
+                dados_cliente = df_completo[df_completo['ESTABELECIMENTO NOME1'] == cliente]
+                
+                # Linha principal (mesmo estilo)
+                fig_mensal.add_trace(go.Scatter(
+                    x=dados_cliente['Mês'],
+                    y=dados_cliente['Faturamento'],
+                    name=cliente,
+                    mode='lines+markers',
+                    line=dict(width=3, color=cores[idx]),
+                    marker=dict(size=10, color=cores[idx]),
+                    hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
+                ))
+                
+                # Linha de previsão pontilhada (mesmo estilo)
+                if not dados_cliente[dados_cliente['Mês'] == 'Março'].empty:
+                    fig_mensal.add_trace(go.Scatter(
+                        x=['Fevereiro', 'Março'],
+                        y=[
+                            dados_cliente[dados_cliente['Mês'] == 'Fevereiro']['Faturamento'].values[0],
+                            dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]
+                        ],
+                        mode='lines',
+                        line=dict(dash='dot', color=cores[idx], width=2),
+                        showlegend=False,
+                        hoverinfo='none'
+                    ))
+                    
+                    # Marcador de diamante para previsão
+                    fig_mensal.add_trace(go.Scatter(
+                        x=['Março'],
+                        y=[dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]],
+                        mode='markers+text',
+                        marker=dict(size=14, color=cores[idx], symbol='diamond'),
+                        text=[f'Previsão: R$ {dados_cliente[dados_cliente["Mês"] == "Março"]["Faturamento"].values[0]:,.2f}'],
+                        textposition='top center',
+                        showlegend=False,
+                        hoverinfo='y'
+                    ))
+
+            # Layout do gráfico mantendo estilo original
+            fig_mensal.update_layout(
+                xaxis=dict(
+                    categoryorder='array',
+                    categoryarray=meses_ordem,
+                    gridcolor=COLORS['secondary'],
+                    linecolor=COLORS['primary'],
+                    title='Mês'
                 ),
-                text=[f'Previsão: R$ {dados_cliente[dados_cliente["Mês"] == "Março"]["Faturamento"].values[0]:,.2f}'],
-                textposition='top center',
-                showlegend=False,
-                hoverinfo='y'
-            ))
-
-    # Atualizar layout
-    fig.update_layout(
-        xaxis=dict(
-            categoryorder='array',
-            categoryarray=meses_ordem,
-            gridcolor=COLORS['secondary'],
-            linecolor=COLORS['primary'],
-            title='Mês'
-        ),
-        yaxis=dict(
-            gridcolor=COLORS['secondary'],
-            linecolor=COLORS['primary'],
-            title='Faturamento (R$)',
-            tickprefix='R$ '
-        ),
-        hoverlabel=dict(
-            bgcolor=COLORS['card'],
-            font_size=14,
-            font_family=FONT_STYLE['family']
-        ),
-        plot_bgcolor=COLORS['plot_bg'],
-        paper_bgcolor=COLORS['card'],
-        font=dict(color=COLORS['text']),
-        margin=dict(l=50, r=50, t=80, b=50),
-        title='Evolução do Faturamento com Previsão para Março',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
-    )
-
-    # Adicionar setas de variação
-    for cliente in clientes_selecionados:
-        cliente_data = filtered_df[filtered_df['ESTABELECIMENTO NOME1'] == cliente]
-        for i, row in cliente_data.iterrows():
-            if pd.notna(row['Variação R$']):
-                symbol = '▲' if row['Variação R$'] > 0 else '▼'
-                color = COLORS['success'] if row['Variação R$'] > 0 else COLORS['danger']
-                fig.add_annotation(
-                    x=row['Mês'],
-                    y=row['Faturamento'],
-                    text=f'{symbol} {abs(row["Variação %"]):.1f}%',
-                    showarrow=False,
-                    font=dict(color=color, size=12),
-                    xshift=15,
-                    yshift=10
+                yaxis=dict(
+                    gridcolor=COLORS['secondary'],
+                    linecolor=COLORS['primary'],
+                    title='Faturamento (R$)',
+                    tickprefix='R$ '
+                ),
+                hoverlabel=dict(
+                    bgcolor=COLORS['card'],
+                    font_size=14,
+                    font_family=FONT_STYLE['family']
+                ),
+                plot_bgcolor=COLORS['plot_bg'],
+                paper_bgcolor=COLORS['card'],
+                font=dict(color=COLORS['text']),
+                margin=dict(l=50, r=50, t=80, b=50),
+                title='Evolução do Faturamento com Previsão para Março',
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
                 )
-    
-    return fig, table_df.to_dict('records'), columns
-    
+            )
+
+            # Adicionar setas de variação (estilo original)
+            filtered_mensal['Variação %'] = (filtered_mensal['Faturamento'] / filtered_mensal['Faturamento Anterior'] - 1) * 100
+            for cliente in clientes_selecionados:
+                cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
+                for i, row in cliente_data.iterrows():
+                    if pd.notna(row['Variação %']):
+                        symbol = '▲' if row['Variação %'] > 0 else '▼'
+                        color = COLORS['success'] if row['Variação %'] > 0 else COLORS['danger']
+                        fig_mensal.add_annotation(
+                            x=row['Mês'],
+                            y=row['Faturamento'],
+                            text=f'{symbol} {abs(row["Variação %"]):.1f}%',
+                            showarrow=False,
+                            font=dict(color=color, size=12),
+                            xshift=15,
+                            yshift=10
+                        )
+
+            # Preparar dados da tabela (formatação original)
+            table_df = filtered_mensal.copy()
+            table_df['Faturamento'] = table_df['Faturamento'].apply(lambda x: f'R$ {x:,.2f}')
+            table_df['Variação %'] = table_df['Variação %'].apply(lambda x: f'{x:.1f}%' if pd.notna(x) else 'N/A')
+            table_data = table_df.to_dict('records')
+
+        # =====================================
+        # PROCESSAMENTO DIÁRIO (mantido igual)
+        # =====================================
+        if not daily_data.empty:
+            filtered_diario = daily_data[
+                (daily_data['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)) &
+                (daily_data['DATA'] >= pd.to_datetime(start_date)) &
+                (daily_data['DATA'] <= pd.to_datetime(end_date))
+            ]
+            
+            if not filtered_diario.empty:
+                fig_diario.add_trace(go.Bar(
+                    x=filtered_diario['DATA'],
+                    y=filtered_diario['Faturamento Diário'],
+                    name='Faturamento Diário',
+                    marker_color=COLORS['primary']
+                ))
+
+        # Layout do gráfico diário (mesmo estilo)
+        fig_diario.update_layout(
+            xaxis=dict(
+                gridcolor=COLORS['secondary'],
+                linecolor=COLORS['primary'],
+                title='Data'
+            ),
+            yaxis=dict(
+                gridcolor=COLORS['secondary'],
+                linecolor=COLORS['primary'],
+                title='Faturamento Diário (R$)',
+                tickprefix='R$ '
+            ),
+            plot_bgcolor=COLORS['plot_bg'],
+            paper_bgcolor=COLORS['card'],
+            font=dict(color=COLORS['text']),
+            margin=dict(l=50, r=50, t=80, b=50),
+            showlegend=False
+        )
+
+        # Colunas da tabela (mesmo formato original)
+        columns = [
+            {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
+            {'name': 'Mês', 'id': 'Mês'},
+            {'name': 'Faturamento', 'id': 'Faturamento'},
+            {'name': 'Variação %', 'id': 'Variação %'}
+        ]
+
+    except Exception as e:
+        print(f"Erro na análise: {str(e)}")
+
+    return fig_mensal, fig_diario, table_data, columns
