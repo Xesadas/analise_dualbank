@@ -1,8 +1,15 @@
 import dash
-from dash import Dash, html, dcc,register_page
+from dash import Dash, html, dcc, register_page
+from datetime import datetime
+import io
+import data_processing
+import pandas as pd
+import numpy as np
 
 app = Dash(__name__, suppress_callback_exceptions=True, use_pages=True)
 server = app.server
+
+SERVER_DATA_PATH = '/data/stores.xlsx' 
 
 # Estilos
 link_style = {
@@ -30,10 +37,15 @@ app.layout = html.Div([
     html.Div([
         dcc.Link('📈 Acompanhamento Clientes', href=dash.page_registry['pages.analise']['path'], style=link_style),
         dcc.Link('📁 Dados Clientes', href=dash.page_registry['pages.dados']['path'], style=link_style),
-        dcc.Link('📝 Cadastro', href=dash.page_registry['pages.inputs']['path'], style=link_style)
+        dcc.Link('📝 Lançamento de Dados dos Clientes', href=dash.page_registry['pages.inputs']['path'], style=link_style),
+        dcc.Link('💸 Emprestimos', href=dash.page_registry['pages.Emprestimos']['path'], style=link_style),
+        dcc.Link('🕵️‍♂️ Análise Agente', href=dash.page_registry['pages.agent_analysis']['path'], style=link_style),
+
     ], style=navbar_style),
     dash.page_container
 ])
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

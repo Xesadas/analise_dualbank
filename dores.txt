@@ -17,4 +17,8 @@ corrigido
 
 
 serão necessárias tres formas de input  de valores
-diario, quinzenal e mensal
+diario, quinzenal e 
+
+
+
+atualização de páginas a cada novo input, apagar linha desejada, cacete
