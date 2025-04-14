@@ -22,3 +22,5 @@ diario, quinzenal e
 
 
 atualização de páginas a cada novo input, apagar linha desejada, cacete
+
+criar uma nova coluna/aba dentro da planilha excell e dividir os clientes entre seilá quais os trem que tem que dividir, mas era pelo menos uns três grupos
