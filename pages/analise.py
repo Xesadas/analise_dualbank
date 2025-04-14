@@ -80,7 +80,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
                    style={'color': COLORS['primary'], 
                           'fontSize': '2.5em',
                           'textShadow': '2px 2px 4px rgba(0,0,0,0.1)'}),
-            html.P("Análise comparativa mensal de desempenho comercial", 
+            html.P("Análise de faturamento de clientes DualBank", 
                   style={'color': COLORS['secondary'], 'fontSize': '1.1em'})
         ]),
         
