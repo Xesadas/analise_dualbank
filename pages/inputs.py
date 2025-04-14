@@ -21,7 +21,7 @@ dash.register_page(
     name='Cadastro'
 )
 
-# Layout da página
+# Layout inputs
 layout = dbc.Container([
     html.Div([  # Adicionar um wrapper para o conteúdo
         html.Div([
@@ -40,6 +40,7 @@ layout = dbc.Container([
                             dcc.DatePickerSingle(
                                 id='data-cadastro',
                                 date=datetime.today(),
+                                first_day_of_week=0,
                                 display_format='DD/MM/YYYY',
                                 className='w-100'
                             )
@@ -49,6 +50,7 @@ layout = dbc.Container([
                             dbc.Label("Data de Aprovação", className="mb-2"),
                             dcc.DatePickerSingle(
                                 id='data-aprovacao',
+                                first_day_of_week=0,
                                 display_format='DD/MM/YYYY',
                                 className='w-100'
                             )
@@ -205,118 +207,101 @@ layout = dbc.Container([
     )
 ], fluid=True)
 
+
 @callback(
     Output('alert', 'is_open'),
     Output('alert', 'children'),
     Output('alert', 'color'),
     Input('salvar-button', 'n_clicks'),
-    [State(field, 'value') for field in [
-        'data-cadastro', 'data-aprovacao', 'nome-estabelecimento',
-        'cpf-cnpj', 'responsavel', 'telefone', 'cpf-responsavel',
-        'representante', 'portal', 'pagseguro', 'sub',
-        'pagseguro-email', 'plano-pagseguro'
-    ]],
+    [
+        State('data-cadastro', 'date'),
+        State('data-aprovacao', 'date'),
+        State('nome-estabelecimento', 'value'),
+        State('cpf-cnpj', 'value'),
+        State('responsavel', 'value'),
+        State('telefone', 'value'),
+        State('cpf-responsavel', 'value'),
+        State('representante', 'value'),
+        State('portal', 'value'),
+        State('pagseguro', 'value'),
+        State('sub', 'value'),
+        State('pagseguro-email', 'value'),
+        State('plano-pagseguro', 'value')
+    ],
     prevent_initial_call=True
 )
-def salvar_cadastro(n_clicks, *args):
+def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabelecimento, 
+                   cpf_cnpj, responsavel, telefone, cpf_responsavel, representante, 
+                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro):
+    
     file_path = 'stores.xlsx'
     
     try:
-        # 1. Verificação de dados de entrada
-        logging.debug(f"Dados recebidos: {args}")
-        
-        # 2. Processamento de datas com fallbacks
-        def processar_data(date_value):
-            if not date_value:
+        # Função para processar datas
+        def processar_data(date_str):
+            if not date_str:
                 return None
             try:
-                if isinstance(date_value, datetime):
-                    return date_value.date()
-                return datetime.fromisoformat(date_value).date()
+                # Converter de string ISO (YYYY-MM-DD) para date
+                return datetime.strptime(date_str, '%Y-%m-%d').date()
             except Exception as e:
-                logging.error(f"Erro conversão data: {str(e)}")
+                logging.error(f"Erro na conversão da data: {str(e)}")
                 return None
 
-        data_cadastro = processar_data(args[0])
-        data_aprovacao = processar_data(args[1])
-        
-        logging.debug(f"Datas convertidas - Cadastro: {data_cadastro} | Aprovação: {data_aprovacao}")
+        # Processar datas
+        data_cadastro_dt = processar_data(data_cadastro)
+        data_aprovacao_dt = processar_data(data_aprovacao)
 
-        # 3. Criar dicionário com tipos explícitos
+        # Criar dicionário com novo registro
         novo_registro = {
-            'DATA DE CADASTRO': data_cadastro,
-            'DATA DE APROVAÇÃO': data_aprovacao,
-            'ESTABELECIMENTO NOME1': str(args[2]) if args[2] else None,
-            'ESTABELECIMENTO CPF/CNPJ': str(args[3]) if args[3] else None,
-            'RESPONSÁVEL DO ESTABELECIMENTO': str(args[4]) if args[4] else None,
-            'RESPONSÁVEL TELEFONE': str(args[5]) if args[5] else None,
-            'RESPONSÁVEL CPF/CNPJ': str(args[6]) if args[6] else None,
-            'REPRESENTANTE NOME1': str(args[7]) if args[7] else None,
-            'PORTAL': args[8],
-            'PAGSEGURO': args[9],
-            'SUB': args[10],
-            'PAGSEGURO EMAIL': str(args[11]) if args[11] else None,
-            'PLANO PAG': args[12],
+            'DATA DE CADASTRO': data_cadastro_dt,
+            'DATA DE APROVAÇÃO': data_aprovacao_dt,
+            'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
+            'ESTABELECIMENTO CPF/CNPJ': cpf_cnpj or '',
+            'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
+            'RESPONSÁVEL TELEFONE': telefone or '',
+            'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
+            'REPRESENTANTE NOME1': representante or '',
+            'PORTAL': portal or 'INATIVO',
+            'PAGSEGURO': pagseguro or 'DESABILITADO',
+            'SUB': sub or 'NÃO HABILITADO',
+            'PAGSEGURO EMAIL': pagseguro_email or '',
+            'PLANO PAG': plano_pagseguro or '',
             'STATUS': 'PENDENTE',
             'BANKING': 'NÃO HABILITADO',
-            'Média de Faturamento': 0.0
+            'Média de Faturamento': 0.0,
+            'Faturamento Dezembro': 0,
+            'Faturamento Janeiro': 0,
+            'Faturamento Fevereiro': 0
         }
 
-        # 4. Criar DataFrame com tipos explícitos
-        dtypes = {
-            'DATA DE CADASTRO': 'datetime64[ns]',
-            'DATA DE APROVAÇÃO': 'datetime64[ns]',
-            'ESTABELECIMENTO NOME1': 'object',
-            'ESTABELECIMENTO CPF/CNPJ': 'object',
-            'RESPONSÁVEL DO ESTABELECIMENTO': 'object',
-            'RESPONSÁVEL TELEFONE': 'object',
-            'RESPONSÁVEL CPF/CNPJ': 'object',
-            'REPRESENTANTE NOME1': 'object',
-            'PORTAL': 'category',
-            'PAGSEGURO': 'category',
-            'SUB': 'category',
-            'PAGSEGURO EMAIL': 'object',
-            'PLANO PAG': 'category',
-            'STATUS': 'category',
-            'BANKING': 'category',
-            'Média de Faturamento': 'float64'
-        }
-
-        # 5. Carregar ou criar novo arquivo
+        # Carregar ou criar arquivo Excel
         if os.path.exists(file_path):
-            try:
-                df_existente = pd.read_excel(
-                    file_path,
-                    dtype=dtypes,
-                    parse_dates=['DATA DE CADASTRO', 'DATA DE APROVAÇÃO'],
-                    engine='openpyxl'
-                )
-                df_existente = df_existente.astype(dtypes)
-            except Exception as e:
-                logging.error(f"Erro ao carregar arquivo: {str(e)}")
-                return True, "Erro ao ler arquivo existente", "danger"
+            df_existente = pd.read_excel(
+                file_path,
+                parse_dates=['DATA DE CADASTRO', 'DATA DE APROVAÇÃO'],
+                engine='openpyxl'
+            )
         else:
-            df_existente = pd.DataFrame(columns=dtypes.keys()).astype(dtypes)
+            df_existente = pd.DataFrame()
 
-        # 6. Adicionar novo registro
-        df_novo = pd.DataFrame([novo_registro]).astype(dtypes)
+        # Criar DataFrame com novo registro
+        df_novo = pd.DataFrame([novo_registro])
         df_final = pd.concat([df_existente, df_novo], ignore_index=True)
 
-        # 7. Salvar e formatar o arquivo
+        # Salvar com formatação
         with pd.ExcelWriter(
             file_path,
             engine='openpyxl',
-            mode='a' if os.path.exists(file_path) else 'w',
-            if_sheet_exists='overlay'
+            mode='w'
         ) as writer:
-            # Salvar dados
             df_final.to_excel(writer, index=False, sheet_name='Sheet1')
             
-            # Acessar objetos do openpyxl
+            # Acessar objetos do openpyxl para formatação
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
             
-            # Estilização
+            # Estilização do cabeçalho
             header_fill = PatternFill(start_color='1a064d', end_color='1a064d', fill_type='solid')
             header_font = Font(color='FFFFFF', bold=True)
             header_border = Border(
@@ -331,20 +316,28 @@ def salvar_cadastro(n_clicks, *args):
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.border = header_border
-                cell.alignment = Alignment(wrap_text=True)
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            
+            # Formatar colunas de data
+            date_format = 'DD/MM/YYYY'
+            for col in ['A', 'B']:
+                for cell in worksheet[col][1:]:  # Começa da segunda linha
+                    cell.number_format = date_format
             
             # Ajustar largura das colunas
-            worksheet.column_dimensions['A'].width = 15
-            worksheet.column_dimensions['B'].width = 15
-            for col in ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']:
-                worksheet.column_dimensions[col].width = 20
+            column_widths = {
+                'A': 15, 'B': 15, 'C': 25, 'D': 20, 'E': 25,
+                'F': 15, 'G': 20, 'H': 20, 'I': 12, 'J': 12,
+                'K': 15, 'L': 20, 'M': 15, 'N': 15, 'O': 18,
+                'P': 15, 'Q': 12, 'R': 20, 'S': 20, 'T': 20,
+                'U': 20
+            }
+            
+            for col, width in column_widths.items():
+                worksheet.column_dimensions[col].width = width
 
-            # Remover linha vazia do pandas
-            worksheet.delete_rows(1)
-
-        logging.debug("Arquivo salvo com sucesso!")
-        return True, "Dados salvos com sucesso!", "success"
-
+        return True, "Cadastro salvo com sucesso! ✔️", "success"
+    
     except Exception as e:
-        logging.error(f"Erro completo: {traceback.format_exc()}")
-        return True, f"Erro crítico: {str(e)}", "danger"
+        logging.error(f"Erro crítico: {str(e)}\n{traceback.format_exc()}")
+        return True, f"Erro ao salvar: {str(e)} ❌", "danger"
