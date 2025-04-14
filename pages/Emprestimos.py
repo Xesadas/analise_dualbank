@@ -5,6 +5,9 @@ import numpy as np
 from datetime import datetime
 import data_processing
 
+
+#REFERENTE A EMPRÉSTIMOS!!!
+
 # Registra a página
 register_page(__name__, path='/Emprestimos')
 

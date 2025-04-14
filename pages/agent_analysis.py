@@ -5,6 +5,9 @@ import logging
 from datetime import datetime
 import numpy as np
 
+
+#REFERENTE A EMPRÉSTIMOS!!!
+
 logger = logging.getLogger(__name__)
 register_page(__name__, path='/agents-analysis')
 
