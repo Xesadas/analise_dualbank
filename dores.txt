@@ -11,3 +11,10 @@ e uma terceira de visão geral dos clientes, onde eu poderia ter uma tabela com 
 
 Implementar machine learning é uma ideia super interessante, só que surpresa, eu não faço a menor ideia de como colocar um modelo  de ia não supervisionado numa aplicação web
 
+preciso lidar com os novos valores que serão inseridos de mês em mês e quem sabe até diariamente.
+ meu deus as datas não são salvas socorro 
+corrigido
+
+
+serão necessárias tres formas de input  de valores
+diario, quinzenal e mensal
