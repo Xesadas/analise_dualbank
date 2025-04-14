@@ -12,6 +12,7 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
 logging.basicConfig(level=logging.DEBUG)
 
+#REFERENTE A ANÁLISE DE DADOS!!!
 dash.register_page(
     __name__,
     path='/cadastro',
