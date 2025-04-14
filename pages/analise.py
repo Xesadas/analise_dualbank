@@ -8,6 +8,10 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import openpyxl
 
+
+
+#REFERENTE A ANÁLISE DE DADOS!!!
+
 register_page(
     __name__,
     path='/',
