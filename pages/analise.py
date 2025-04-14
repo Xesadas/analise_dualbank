@@ -17,6 +17,10 @@ register_page(
 
 df = pd.read_excel('stores.xlsx', engine='openpyxl')
 
+options = [{'label': str(nome), 'value': str(nome)} 
+           for nome in df['ESTABELECIMENTO NOME1'].unique() 
+           if pd.notna(nome) and str(nome).strip() != '']
+
 meses = {
     'Faturamento Dezembro': 'Dezembro',
     'Faturamento Janeiro': 'Janeiro',
@@ -38,6 +42,8 @@ df_long['Mês'] = pd.Categorical(
     ordered=True
 )
 
+if not options:
+    options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
 
 
 # =====================================
@@ -85,27 +91,26 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
             'borderRadius': '15px',
             'boxShadow': '0 4px 6px rgba(0,0,0,0.1)',
             'marginBottom': '30px'
-        }, children=[
-            dcc.Dropdown(
-                id='cliente-dropdown',
-                options=[{'label': nome, 'value': nome} 
-                         for nome in df['ESTABELECIMENTO NOME1'].unique()],
-                multi=True,
-                placeholder="🔍 Selecione até 5 clientes...",
-                style={
-                    'width': '100%',
-                    'borderRadius': '8px',
-                    'border': f'1px solid {COLORS["primary"]}',
-                    'backgroundColor': COLORS['card'],
-                    'color': COLORS['text']
-                },
-                className='custom-dropdown',
-                maxHeight=300
-            )
-        ]),
-        
-        # Gráfico
-        html.Div(className='graph-card', style={
+}, children=[
+    dcc.Dropdown(
+        id='cliente-dropdown',
+        options=options,
+        multi=True,
+        placeholder="🔍 Selecione o cliente desejado...",
+        style={
+            'width': '100%',
+            'borderRadius': '8px',
+            'border': f'1px solid {COLORS["primary"]}',
+            'backgroundColor': COLORS['card'],
+            'color': COLORS['text']
+        },
+        className='custom-dropdown',
+        maxHeight=300
+    )
+]),  
+
+# Gráfico
+html.Div(className='graph-card', style={
             'backgroundColor': COLORS['card'],
             'padding': '20px',
             'borderRadius': '15px',
@@ -183,7 +188,13 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
     Input('cliente-dropdown', 'value')
 )
 def update_graph(clientes_selecionados):
-    if not clientes_selecionados:
+    # Verificar se há dados válidos
+    if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
+        return go.Figure(), [], []
+
+    # Verificar dados faltantes
+    valid_clients = [c for c in clientes_selecionados if c in df['ESTABELECIMENTO NOME1'].values]
+    if not valid_clients:
         return go.Figure(), [], []
 
     # Processamento dos dados
