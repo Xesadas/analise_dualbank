@@ -1,10 +1,5 @@
 import dash
-from dash import Dash, html, dcc, register_page
-from datetime import datetime
-import io
-import data_processing
-import pandas as pd
-import numpy as np
+from dash import Dash, html, dcc
 
 app = Dash(__name__, suppress_callback_exceptions=True, use_pages=True)
 server = app.server

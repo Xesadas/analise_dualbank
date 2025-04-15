@@ -149,7 +149,7 @@ def load_and_process_data():
                 ])
 
                 processed_sheets[sheet_name] = df
-                logger.info(f"Aba {sheet_name} processada com sucesso")
+                #logger.info(f"Aba {sheet_name} processada com sucesso")
 
             except Exception as e:
                 logger.error(f"Erro na aba {sheet_name}: {str(e)}")
