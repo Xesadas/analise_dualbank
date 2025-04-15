@@ -6,7 +6,8 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import openpyxl
+from datetime import datetime as dt
+import os
 
 
 
@@ -117,14 +118,92 @@ options = [{'label': str(nome), 'value': str(nome)}
 if not options:
     options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
 
+
+cached_data = {
+    'df_cadastros': pd.DataFrame(),
+    'df_transacoes': pd.DataFrame(),
+    'df': pd.DataFrame(),
+    'df_long': pd.DataFrame(),
+    'daily_data': pd.DataFrame(),
+    'last_modified': None
+}
+
+def load_data():
+    global cached_data
+    file_path = 'stores.xlsx'
+    
+    try:
+        current_modified = os.path.getmtime(file_path)
+        
+        if cached_data['last_modified'] != current_modified:
+            # Carrega dados
+            df_cadastros = pd.read_excel(file_path, sheet_name='Sheet1', engine='openpyxl')
+            df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes', engine='openpyxl')
+            df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
+            
+            df = pd.merge(
+                df_transacoes, 
+                df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
+                left_on='CPF/CNPJ',
+                right_on='ESTABELECIMENTO CPF/CNPJ',
+                how='left'
+            )
+            
+            # Prepara df_long
+            meses = {'Faturamento Dezembro': 'Dezembro', 'Faturamento Janeiro': 'Janeiro', 'Faturamento Fevereiro': 'Fevereiro'}
+            df_long = df_cadastros.melt(
+                id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
+                value_vars=meses.keys(),
+                var_name='Mês',
+                value_name='Faturamento'
+            ) if not df_cadastros.empty else pd.DataFrame()
+            
+            df_long['Mês'] = df_long['Mês'].map(meses)
+            df_long['Mês'] = pd.Categorical(
+                df_long['Mês'], 
+                categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
+                ordered=True
+            )
+            
+            # Prepara dados diários
+            daily_data = df.groupby(['ESTABELECIMENTO NOME1', pd.Grouper(key='DATA', freq='D')]).agg({
+                'VALOR (R$)': 'sum',
+                'CPF/CNPJ': 'count'
+            }).rename(columns={
+                'VALOR (R$)': 'Faturamento Diário',
+                'CPF/CNPJ': 'Transações'
+            }).reset_index() if not df.empty else pd.DataFrame()
+            
+            # Atualiza cache
+            cached_data.update({
+                'df_cadastros': df_cadastros,
+                'df_transacoes': df_transacoes,
+                'df': df,
+                'df_long': df_long,
+                'daily_data': daily_data,
+                'last_modified': current_modified
+            })
+            
+    except Exception as e:
+        print(f"Erro ao carregar dados: {str(e)}")
+    
+    return cached_data
+    
+
 # =====================================
-# LAYOUT COMPLETO (CORRIGIDO)
+# LAYOUT COMPLETO
 # =====================================
 layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '100vh'}, children=[
     html.Div(className='container', style={'padding': '30px', 'maxWidth': '1200px', 'margin': '0 auto'}, children=[
         
         # Título
         html.Div(className='header', style={'textAlign': 'center', 'marginBottom': '40px'}, children=[
+            dcc.Interval(
+                id='interval-component',
+                interval=1*1000,  # Atualiza a cada segundo (ajuste conforme necessário)
+                n_intervals=0,
+                disabled=True  # Desativado por padrão
+            ),
             html.H1("📈 Análise de Faturamento", 
                    style={'color': COLORS['primary'], 
                           'fontSize': '2.5em',
@@ -163,7 +242,6 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
             )
         ]),
         
-        # Gráficos
         html.Div(className='graph-container', children=[
             html.Div(className='graph-card', style={
                 'backgroundColor': COLORS['card'],
@@ -239,28 +317,45 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 ])
 
 @callback(
+    Output('cliente-dropdown', 'options'),
+    Input('interval-component', 'n_intervals')
+)
+
+def update_dropdown(n):
+    data = load_data()
+    df_cadastros = data['df_cadastros']
+    options = [{'label': str(nome), 'value': str(nome)} 
+               for nome in df_cadastros['ESTABELECIMENTO NOME1'].unique() 
+               if pd.notna(nome) and str(nome).strip() != '']
+    return options if options else [{'label': 'Sem dados', 'value': 'NO_DATA'}]
+
+
+@callback(
     Output('grafico-mensal', 'figure'),
     Output('grafico-diario', 'figure'),
     Output('tabela-variacao', 'data'),
     Output('tabela-variacao', 'columns'),
     Input('cliente-dropdown', 'value'),
     Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
+    Input('date-range', 'end_date'),
+    Input('interval-component', 'n_intervals') 
 )
-def update_analysis(clientes_selecionados, start_date, end_date):
-    # Inicialização padrão mantendo estilo original
+def update_analysis(clientes_selecionados, start_date, end_date,n):
+
+    data = load_data()
+    
     fig_mensal = go.Figure()
     fig_diario = go.Figure()
     table_data = []
     columns = []
 
-    # Verificação de seleção vazia (estilo original)
+    # Verificação de seleção vazia
     if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
         return fig_mensal, fig_diario, [], []
 
     try:
         # =====================================
-        # PROCESSAMENTO MENSAL COM PREVISÃO (mesmo estilo do callback antigo)
+        # PROCESSAMENTO MENSAL COM PREVISÃO 
         # =====================================
         if not df_long.empty:
             # Filtragem e cálculos originais
@@ -273,7 +368,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
                 cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
                 valores = cliente_data['Faturamento'].values
                 
-                # Cálculo de previsão idêntico ao anterior
+                
                 if len(valores) >= 2:
                     pesos = [0.7, 0.3]
                     previsao = np.average(valores[-2:], weights=pesos)
@@ -298,7 +393,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
             for idx, cliente in enumerate(clientes_selecionados):
                 dados_cliente = df_completo[df_completo['ESTABELECIMENTO NOME1'] == cliente]
                 
-                # Linha principal (mesmo estilo)
+                # Linha principal 
                 fig_mensal.add_trace(go.Scatter(
                     x=dados_cliente['Mês'],
                     y=dados_cliente['Faturamento'],
@@ -309,7 +404,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
                     hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
                 ))
                 
-                # Linha de previsão pontilhada (mesmo estilo)
+                # Linha de previsão pontilhada 
                 if not dados_cliente[dados_cliente['Mês'] == 'Março'].empty:
                     fig_mensal.add_trace(go.Scatter(
                         x=['Fevereiro', 'Março'],
@@ -369,7 +464,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
                 )
             )
 
-            # Adicionar setas de variação (estilo original)
+            # Adicionar setas de variação 
             filtered_mensal['Variação %'] = (filtered_mensal['Faturamento'] / filtered_mensal['Faturamento Anterior'] - 1) * 100
             for cliente in clientes_selecionados:
                 cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
@@ -394,7 +489,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
             table_data = table_df.to_dict('records')
 
         # =====================================
-        # PROCESSAMENTO DIÁRIO (mantido igual)
+        # PROCESSAMENTO DIÁRIO 
         # =====================================
         if not daily_data.empty:
             filtered_diario = daily_data[
@@ -411,7 +506,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
                     marker_color=COLORS['primary']
                 ))
 
-        # Layout do gráfico diário (mesmo estilo)
+        # Layout do gráfico diário 
         fig_diario.update_layout(
             xaxis=dict(
                 gridcolor=COLORS['secondary'],
@@ -431,7 +526,7 @@ def update_analysis(clientes_selecionados, start_date, end_date):
             showlegend=False
         )
 
-        # Colunas da tabela (mesmo formato original)
+        # Colunas da tabela 
         columns = [
             {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
             {'name': 'Mês', 'id': 'Mês'},
