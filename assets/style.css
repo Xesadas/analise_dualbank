@@ -523,7 +523,34 @@ body {
     }
 }
 
-.delete-btn:hover {
-    transform: scale(1.2);
-    transition: all 0.3s ease;
+.container-novos-clientes {
+    background-color: #1a1a1a;
+    padding: 2rem;
+    border-radius: 15px;
+    margin: 2rem auto;
+    max-width: 1200px;
+}
+
+.titulo-novos-clientes {
+    color: #a991f7;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.dropdown-clientes, .dropdown-frequencia, .campo-transacao {
+    background-color: #333333 !important;
+    color: white !important;
+    border: 1px solid #444444;
+}
+
+.card-header {
+    background-color: #320c8a !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.card-text {
+    color: #2ecc71 !important;
+    font-size: 1.5rem;
+    text-align: center;
 }
