@@ -277,10 +277,21 @@ def carregar_clientes(_):
     file_path = 'stores.xlsx'
     try:
         if os.path.exists(file_path):
-            df = pd.read_excel(file_path, 
-                             sheet_name='Cadastros', 
-                             usecols=['ESTABELECIMENTO CPF/CNPJ'])
-            return [{'label': cnpj, 'value': cnpj} for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].unique()]
+            df = pd.read_excel(
+                file_path, 
+                sheet_name='Sheet1', 
+                usecols=['ESTABELECIMENTO CPF/CNPJ'], 
+                dtype={'ESTABELECIMENTO CPF/CNPJ': str}
+            )
+            
+            # Filtro aprimorado
+            options = [
+                {'label': cnpj, 'value': cnpj} 
+                for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].dropna().unique()
+                if isinstance(cnpj, str) and cnpj.strip() != ''
+            ]
+            
+            return options
         return []
     except Exception as e:
         logging.error(f"Erro ao carregar clientes: {str(e)}")
@@ -305,6 +316,7 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
         return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
     
     try:
+        data_transacao = data_transacao.split('T')[0]
         data_transacao = datetime.strptime(data_transacao, '%Y-%m-%d').strftime('%d/%m/%Y')
         valor = float(valor)
         
@@ -337,8 +349,8 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
             if_sheet_exists='replace'
         ) as writer:
             if 'Cadastros' in sheets:
-                df_cadastros = pd.read_excel(file_path, sheet_name='Cadastros')
-                df_cadastros.to_excel(writer, index=False, sheet_name='Cadastros')
+                df_cadastros = pd.read_excel(file_path, sheet_name='Sheet1')
+                df_cadastros.to_excel(writer, index=False, sheet_name='Sheet1')
             
             df_final.to_excel(writer, index=False, sheet_name='Transacoes')
             
@@ -409,7 +421,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             'DATA DE CADASTRO': data_cadastro_dt,
             'DATA DE APROVAÇÃO': data_aprovacao_dt,
             'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
-            'ESTABELECIMENTO CPF/CNPJ': cpf_cnpj or '',
+            'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
             'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
             'RESPONSÁVEL TELEFONE': telefone or '',
             'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
@@ -433,7 +445,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
                 sheets = excel.sheet_names
                 
             if 'Cadastros' in sheets:
-                df_existente = pd.read_excel(file_path, sheet_name='Cadastros')
+                df_existente = pd.read_excel(file_path, sheet_name='Sheet1')
             else:
                 df_existente = pd.DataFrame()
         else:
@@ -452,10 +464,10 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
                 df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes')
                 df_transacoes.to_excel(writer, index=False, sheet_name='Transacoes')
             
-            df_final.to_excel(writer, index=False, sheet_name='Cadastros')
+            df_final.to_excel(writer, index=False, sheet_name='Sheet1')
             
             workbook = writer.book
-            worksheet = writer.sheets['Cadastros']
+            worksheet = writer.sheets['Sheet1']
             
             header_fill = PatternFill(start_color='1a064d', end_color='1a064d', fill_type='solid')
             header_font = Font(color='FFFFFF', bold=True)
