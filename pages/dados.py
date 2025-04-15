@@ -2,6 +2,8 @@ import dash
 from dash import html, dcc, Input, Output, dash_table, callback, State, register_page
 import pandas as pd
 import dash_bootstrap_components as dbc
+import uuid
+from pathlib import Path
 
 register_page(
     __name__,
@@ -9,9 +11,38 @@ register_page(
     title='Dados Clientes',
     name='Dados dos clientes'
 )
+excel_path = Path('stores.xlsx')
 
 excel_file = 'stores.xlsx'
 sheet_names = pd.ExcelFile(excel_file, engine='openpyxl').sheet_names
+
+if excel_path.exists():
+    dfs = pd.read_excel(excel_path, sheet_name=None, engine='openpyxl')
+    
+    for sheet in dfs:
+        df = dfs[sheet]
+        if 'temp_id' not in df.columns:
+            df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+    
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
+        for sheet_name, df in dfs.items():
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+def initialize_excel():
+    if Path(excel_file).exists():
+        dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+        for sheet in dfs:
+            df = dfs[sheet]
+            if 'temp_id' not in df.columns:
+                df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+            df['temp_id'] = df['temp_id'].astype(str)
+        
+        with pd.ExcelWriter(excel_file, engine='openpyxl', mode='w') as writer:
+            for sheet_name, df in dfs.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+# Executa a inicialização uma vez
+initialize_excel()
 
 layout = html.Div([
     html.Div([
@@ -126,14 +157,30 @@ layout = html.Div([
 ], className='main-container')
 
 def load_excel():
-    return pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+    dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+    for sheet in dfs:
+        df = dfs[sheet]
+        df['temp_id'] = df['temp_id'].astype(str)  # Garante tipo string
+    return dfs
 
 def save_excel(modified_data):
-    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
-        for sheet_name, df in modified_data.items():
-            # Remove a coluna 'id' antes de salvar
-            df_to_save = df.drop(columns=['id'], errors='ignore')
-            df_to_save.to_excel(writer, sheet_name=sheet_name, index=False)
+    try:
+        with pd.ExcelWriter(
+            excel_file,
+            engine='openpyxl',
+            mode='w'  # Modo de sobrescrita completo
+        ) as writer:
+            for sheet_name in sheet_names:  # Usa a lista original de sheets
+                df = modified_data.get(sheet_name, pd.DataFrame())
+                if not df.empty:
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+        print("Arquivo salvo com sucesso!")
+    except PermissionError:
+        print("ERRO: Feche o Excel antes de salvar!")
+        raise
+    except Exception as e:
+        print(f"Erro inesperado: {str(e)}")
+        raise
 
 @callback(
     Output('data-store', 'data'),
@@ -141,10 +188,10 @@ def save_excel(modified_data):
 )
 def update_data_store(selected_sheet):
     dfs = load_excel()
-    df = dfs[selected_sheet].copy()
-    # Gera o 'id' baseado no índice do DataFrame original
-    df['id'] = df.index.astype(str)
+    df = dfs[selected_sheet].reset_index(drop=True)
     return df.to_dict('records')
+
+
 
 @callback(
     Output('full-data-table', 'columns'),
@@ -186,31 +233,28 @@ def delete_row(n_clicks, selected_rows, data, current_sheet):
         return "🔴 Selecione uma linha antes de apagar!", dash.no_update
     
     try:
-        # Carrega dados completos do Excel
+        # 1. Carrega dados completos do Excel
         dfs = load_excel()
         original_df = dfs[current_sheet].copy()
         
-        # Adiciona a coluna 'id' baseada no índice original
-        original_df['id'] = original_df.index.astype(str)
-        
-        # Obtém os IDs das linhas selecionadas na tabela atual
+        # 2. Obtém os UUIDs selecionados DA VISÃO ATUAL (data-store)
         current_df = pd.DataFrame(data)
-        selected_ids = current_df.iloc[selected_rows]['id'].tolist()
+        selected_uuids = current_df.iloc[selected_rows]['temp_id'].tolist()
         
-        # Filtra o DataFrame original para remover as linhas selecionadas
-        updated_df = original_df[~original_df['id'].isin(selected_ids)]
+        # 3. Remove linhas do DataFrame ORIGINAL usando os UUIDs
+        updated_df = original_df[~original_df['temp_id'].isin(selected_uuids)]
         
-        # Remove a coluna 'id' antes de salvar
-        updated_df_without_id = updated_df.drop(columns=['id'])
-        dfs[current_sheet] = updated_df_without_id
+        # 4. Atualiza dados mantendo todas as abas
+        new_data = {sheet: dfs[sheet] for sheet in sheet_names}
+        new_data[current_sheet] = updated_df
         
-        # Salva as alterações no Excel
-        save_excel(dfs)
+        # 5. Salva o Excel com todas as abas
+        save_excel(new_data)
         
-        # Atualiza o data-store com os novos dados (incluindo novo 'id')
-        updated_df['id'] = updated_df.index.astype(str)  # Atualiza IDs após remoção
-        
-        return "✅ Linha(s) apagada(s) com sucesso!", updated_df.to_dict('records')
+        # 6. Atualiza o data-store com os dados atualizados
+        return "✅ Linha(s) apagada(s) permanentemente!", updated_df.to_dict('records')
     
+    except PermissionError:
+        return "❌ Erro: Feche o Excel antes de salvar!", dash.no_update
     except Exception as e:
-        return f"❌ Erro: {str(e)}", dash.no_update
+        return f"❌ Erro inesperado: {str(e)}", dash.no_update
