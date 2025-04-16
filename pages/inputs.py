@@ -9,9 +9,12 @@ import os
 import traceback
 import logging
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+import json
+from pathlib import Path
 
 
 logging.basicConfig(level=logging.DEBUG)
+excel_path = Path('stores.xlsx')
 
 #REFERENTE A ANÁLISE DE DADOS!!!
 dash.register_page(
@@ -28,8 +31,7 @@ transaction_style = {
     'padding': '20px',
     'marginTop': '30px'
 }
-
-
+    
 layout = dbc.Container([
     html.Div([
         html.Div([
