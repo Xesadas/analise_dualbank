@@ -8,7 +8,6 @@ from openpyxl import Workbook
 import os
 import traceback
 import logging
-from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 import json
 from pathlib import Path
 

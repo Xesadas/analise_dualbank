@@ -2,11 +2,9 @@ import pandas as pd
 import numpy as np
 import dash
 from dash import dcc, html, Input, Output, dash_table, callback, register_page
-import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from datetime import datetime as dt
 import os
 
 
@@ -50,7 +48,18 @@ except Exception as e:
 meses = {
     'Faturamento Dezembro': 'Dezembro',
     'Faturamento Janeiro': 'Janeiro',
-    'Faturamento Fevereiro': 'Fevereiro'
+    'Faturamento Fevereiro': 'Fevereiro',
+    'Faturamento Marco': 'Março',
+    'Faturamento Abril': 'abril',
+    'Faturamento Maio': 'maio',
+    'Faturamento Junho': 'junho',
+    'Faturamento Julho': 'julho',
+    'Faturamento Agosto': 'agosto',
+    'Faturamento Setembro': 'setembro',
+    'Faturamento Outubro': 'outubro',
+    'Faturamento Novembro': 'novembro',
+    #'Faturamento Dezembro': 'dezembro'
+
 }
 
 if not df_cadastros.empty:
@@ -64,7 +73,7 @@ if not df_cadastros.empty:
     df_long['Mês'] = df_long['Mês'].map(meses)
     df_long['Mês'] = pd.Categorical(
         df_long['Mês'], 
-        categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
+        categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro'], 
         ordered=True
     )
 else:
@@ -117,6 +126,12 @@ options = [{'label': str(nome), 'value': str(nome)}
 
 if not options:
     options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
+
+
+#=====================================
+# PRÉ CARREGAMENTO DE DADOS 
+#=====================================
+
 
 
 cached_data = {
@@ -200,7 +215,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
         html.Div(className='header', style={'textAlign': 'center', 'marginBottom': '40px'}, children=[
             dcc.Interval(
                 id='interval-component',
-                interval=1*1000,  # Atualiza a cada segundo (ajuste conforme necessário)
+                interval=1*1000,  # Atualiza a cada segundo 
                 n_intervals=0,
                 disabled=True  # Desativado por padrão
             ),
@@ -316,6 +331,10 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
     ])
 ])
 
+#=====================================
+# CALLBACKS 
+#=====================================
+
 @callback(
     Output('cliente-dropdown', 'options'),
     Input('interval-component', 'n_intervals')
@@ -362,7 +381,7 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
             filtered_mensal = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)].copy()
             filtered_mensal['Faturamento Anterior'] = filtered_mensal.groupby('ESTABELECIMENTO NOME1')['Faturamento'].shift(1)
             
-            # Adicionando previsão para Março como no callback original
+            
             previsoes = []
             for cliente in clientes_selecionados:
                 cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
@@ -482,7 +501,7 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
                             yshift=10
                         )
 
-            # Preparar dados da tabela (formatação original)
+            # Preparar dados da tabela 
             table_df = filtered_mensal.copy()
             table_df['Faturamento'] = table_df['Faturamento'].apply(lambda x: f'R$ {x:,.2f}')
             table_df['Variação %'] = table_df['Variação %'].apply(lambda x: f'{x:.1f}%' if pd.notna(x) else 'N/A')

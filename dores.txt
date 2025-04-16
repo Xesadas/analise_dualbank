@@ -1,26 +1,8 @@
-o bojetivo principal do projeto é criar uma analise de dados de clientes antigos(?) e novos, que
-serão seguidos constantemente para uma analise de lucro ou pedra.
+Lidar com os arquivos corrompidos, Configurar os inputs para ficar dentro do servidor e não no repositório, arrumar os dados,py para lidar com os valores de novos clientes e por fim
+fazer o acompanhamento, essas devem ser as etapas finais do projeto.
 
-A analise deve conter um numero previsto de lucro que o cliente deve obter, e que se não for alcançado
-será acionado um alerta para maior atenção com o individuo
-
-clientes são considerados novos durante um periodo de trinta dias
-
-Multipages será necessário. Uma boa ideia seria ter pelo menos uma três páginas na qual eu trabalharia cada parte da aplicação, uma pagina de input, outra de acompanhamento de dados
-e uma terceira de visão geral dos clientes, onde eu poderia ter uma tabela com todos os dados. Dessa forma seria bem mais organizado
-
-Implementar machine learning é uma ideia super interessante, só que surpresa, eu não faço a menor ideia de como colocar um modelo  de ia não supervisionado numa aplicação web
-
-preciso lidar com os novos valores que serão inseridos de mês em mês e quem sabe até diariamente.
- meu deus as datas não são salvas socorro 
-corrigido
-
-
-serão necessárias tres formas de input  de valores
-diario, quinzenal e 
-
-
-
-atualização de páginas a cada novo input, apagar linha desejada, cacete
-
-criar uma nova coluna/aba dentro da planilha excell e dividir os clientes entre seilá quais os trem que tem que dividir, mas era pelo menos uns três grupos
+-Atualização de inputs
+-Remoção de Dias Restantes
+-Input de meses até dezembro
+-Atualização de média de valores
+-

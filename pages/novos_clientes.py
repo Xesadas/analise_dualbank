@@ -30,11 +30,12 @@ COLORS = {
 
 excel_path = Path('stores.xlsx')
 
+# =====================================
+# FUNÇÕES DE PROCESSAMENTO DE DADOS
+# =====================================
+
 def register_new_client(cpf_cnpj):
     try:
-        pass  # Placeholder for the code to execute
-    except Exception as e:
-        print(f"Erro: {str(e)}")
         with pd.ExcelFile(excel_path) as excel:
             analysis_df = pd.read_excel(excel, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
             clientes_df = pd.read_excel(excel, sheet_name='Sheet1', dtype={'ESTABELECIMENTO CPF/CNPJ': str})
@@ -48,11 +49,10 @@ def register_new_client(cpf_cnpj):
             'data_cadastro': data_cadastro,
             'transacoes': json.dumps({}),
             'frequencia': 'diaria',
-            'media_valores': 0.0,
-            'dias_restantes': 30
+            'media_valores': 0.0
         }
         
-        analysis_df = pd.concat([analysis_df, pd.DataFrame([novo_registro])])
+        analysis_df = pd.concat([analysis_df, pd.DataFrame([novo_registro])], ignore_index=True)
         
         with pd.ExcelWriter(
             excel_path,
@@ -64,7 +64,7 @@ def register_new_client(cpf_cnpj):
             
         return True
     except Exception as e:
-        print(f"Erro: {str(e)}")
+        print(f"Erro no registro: {str(e)}")
         return False
 
 def register_transaction(cpf_cnpj, valor, frequencia):
@@ -80,7 +80,6 @@ def register_transaction(cpf_cnpj, valor, frequencia):
         cliente = clientes_df[clientes_df['ESTABELECIMENTO CPF/CNPJ'] == cpf_cnpj].iloc[0]
         today = datetime.now().date()
         data_cadastro = pd.to_datetime(cliente['DATA DE CADASTRO']).date()
-        dias_restantes = 30 - (today - data_cadastro).days
 
         if cpf_cnpj not in analysis_df['cpf_cnpj'].values:
             novo_registro = {
@@ -88,8 +87,7 @@ def register_transaction(cpf_cnpj, valor, frequencia):
                 'data_cadastro': data_cadastro,
                 'transacoes': json.dumps({str(today): float(valor)}),
                 'frequencia': frequencia,
-                'media_valores': float(valor),
-                'dias_restantes': dias_restantes
+                'media_valores': float(valor)
             }
             analysis_df = pd.concat([analysis_df, pd.DataFrame([novo_registro])])
         else:
@@ -97,18 +95,19 @@ def register_transaction(cpf_cnpj, valor, frequencia):
             transacoes = json.loads(analysis_df.at[row_index, 'transacoes'])
             transacoes[str(today)] = float(valor)
             
-            media = sum(transacoes.values()) / len(transacoes)
+            # Cálculo correto da média
+            media = sum(transacoes.values()) / len(transacoes) if transacoes else 0
+            media = round(media, 2)
             
             analysis_df.at[row_index, 'transacoes'] = json.dumps(transacoes)
             analysis_df.at[row_index, 'media_valores'] = media
-            analysis_df.at[row_index, 'dias_restantes'] = dias_restantes
 
-            nova_transacao = {
+        nova_transacao = {
             'CPF/CNPJ': str(cpf_cnpj).strip().replace('.0', ''),
             'DATA': today.strftime('%d/%m/%Y'),
             'VALOR (R$)': float(valor),
             'STATUS': 'PROCESSADO'
-            }
+        }
 
         transacoes_df = pd.concat([transacoes_df, pd.DataFrame([nova_transacao])])
 
@@ -122,45 +121,23 @@ def register_transaction(cpf_cnpj, valor, frequencia):
             transacoes_df.to_excel(writer, sheet_name='Transacoes', index=False)
             clientes_df.to_excel(writer, sheet_name='Sheet1', index=False)
 
-        return True, f"✅ Transação registrada para {cliente['ESTABELECIMENTO NOME1']}", media, dias_restantes
+        return True, f"✅ Transação registrada para {cliente['ESTABELECIMENTO NOME1']}", media
 
     except Exception as e:
         print(f"Erro detalhado: {str(e)}")
-        return False, f"❌ Erro: {str(e)}", None, None
+        return False, f"❌ Erro: {str(e)}", None
 
 def load_analysis_data():
-    required_columns = ['cpf_cnpj', 'data_cadastro', 'transacoes', 'frequencia', 'media_valores', 'dias_restantes']
+    required_columns = ['cpf_cnpj', 'data_cadastro', 'transacoes', 'frequencia', 'media_valores']
     try:
         df = pd.read_excel(excel_path, sheet_name='30_days_analysis', engine='openpyxl')
         df['cpf_cnpj'] = df['cpf_cnpj'].astype(str).str.replace(r'\.0$', '', regex=True)
         if not all(col in df.columns for col in required_columns):
             raise ValueError("Invalid structure")
         return df
-    except (FileNotFoundError, ValueError, KeyError):
-        df = pd.DataFrame(columns=required_columns)
-        with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            df.to_excel(writer, sheet_name='30_days_analysis', index=False)
-        return df
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        df = pd.DataFrame(columns=required_columns)
-        with pd.ExcelWriter(excel_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
-            df.to_excel(writer, sheet_name='30_days_analysis', index=False)
-        return df
-
-def save_analysis_data(df):
-    try:
-        existing_sheets = pd.ExcelFile(excel_path).sheet_names
-    except FileNotFoundError:
-        existing_sheets = []
-
-    with pd.ExcelWriter(
-        excel_path,
-        engine='openpyxl',
-        mode='a' if '30_days_analysis' in existing_sheets else 'w',
-        if_sheet_exists='replace'
-    ) as writer:
-        df.to_excel(writer, sheet_name='30_days_analysis', index=False)
+        print(f"Erro ao carregar dados: {str(e)}")
+        return pd.DataFrame(columns=required_columns)
 
 # =====================================
 # LAYOUT
@@ -247,19 +224,6 @@ layout = html.Div(
                                         inverse=True
                                     ),
                                     md=3
-                                ),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            dbc.CardHeader("Dias Restantes", className='card-header'),
-                                            dbc.CardBody(
-                                                html.H4(id='dias-restantes', className='card-text')
-                                            )
-                                        ],
-                                        color=COLORS['card'],
-                                        inverse=True
-                                    ),
-                                    md=3
                                 )
                             ]
                         ),
@@ -286,25 +250,23 @@ layout = html.Div(
 )
 def update_dropdown(search_value):
     try:
-        # Carregar dados da planilha
         clientes_df = pd.read_excel(
             excel_path,
             sheet_name='Sheet1',
             usecols=['ESTABELECIMENTO NOME1', 'ESTABELECIMENTO CPF/CNPJ'],
             dtype={'ESTABELECIMENTO CPF/CNPJ': str}
-        ).dropna(subset=['ESTABELECIMENTO CPF/CNPJ'])
+        ).dropna(subset=['ESTABELECIMENTO CPF/CNPJ']).copy()
         
-        # Limpar e formatar CPF/CNPJ
+        # Normalização do CPF/CNPJ
         clientes_df['ESTABELECIMENTO CPF/CNPJ'] = (
             clientes_df['ESTABELECIMENTO CPF/CNPJ']
             .str.strip()
-            .str.replace(r'\D', '', regex=True))
+            .str.replace(r'\D', '', regex=True)
+        )
         
-        # Carregar análise existente
         analysis_df = load_analysis_data()
         analysis_df['cpf_cnpj'] = analysis_df['cpf_cnpj'].astype(str).str.replace(r'\.0$', '', regex=True)
         
-        # Criar opções para dropdown
         options = []
         for _, row in clientes_df.iterrows():
             cpf_cnpj = str(row['ESTABELECIMENTO CPF/CNPJ'])
@@ -318,12 +280,11 @@ def update_dropdown(search_value):
         return options
         
     except Exception as e:
-        print(f"Erro: {str(e)}")
+        print(f"Erro no dropdown: {str(e)}")
         return []
 
 @callback(
     Output('media-valores', 'children'),
-    Output('dias-restantes', 'children'),
     Output('frequencia-select', 'value'),
     Input('cliente-select', 'value'),
     prevent_initial_call=True
@@ -336,18 +297,14 @@ def update_metrics(selected_client):
         analysis_df = load_analysis_data()
         client_data = analysis_df[analysis_df['cpf_cnpj'] == str(selected_client)].iloc[0]
         
-        media = client_data['media_valores']
-        dias = client_data['dias_restantes']
-        frequencia = client_data['frequencia']
-        
         return (
-            f"R$ {media:.2f}",
-            f"{dias} dias",
-            frequencia
+            f"R$ {client_data['media_valores']:.2f}",
+            client_data['frequencia']
         )
-    except:
-        return dash.no_update, dash.no_update, dash.no_update
-    
+    except Exception as e:
+        print(f"Erro nas métricas: {str(e)}")
+        return dash.no_update, dash.no_update
+
 @callback(
     Output('grafico-transacoes', 'figure'),
     Input('cliente-select', 'value'),
@@ -358,27 +315,22 @@ def update_transaction_chart(selected_client):
         if not selected_client:
             raise PreventUpdate
             
-        # Carregar dados da aba Transacoes
         transacoes_df = pd.read_excel(
             excel_path, 
             sheet_name='Transacoes',
             dtype={'CPF/CNPJ': str}
-        ).copy()  # Evitar SettingWithCopyWarning
+        ).copy()
         
-        # Filtrar transações do cliente selecionado
         filtered_df = transacoes_df[transacoes_df['CPF/CNPJ'] == str(selected_client)].copy()
-        
-        # Converter datas para datetime
         filtered_df['DATA'] = pd.to_datetime(filtered_df['DATA'], dayfirst=True)
         
-        # Agrupar e somar valores por data
+        # Agrupamento e soma de valores
         grouped_df = (
             filtered_df.groupby('DATA', as_index=False)
             ['VALOR (R$)'].sum()
             .sort_values('DATA')
         )
         
-        # Criar gráfico de barras
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=grouped_df['DATA'],
@@ -387,16 +339,15 @@ def update_transaction_chart(selected_client):
             name='Transações'
         ))
         
-        # Configurações do layout
         fig.update_layout(
-            title='Transações por Dia',
+            title='Histórico de Transações',
             xaxis_title='Data',
             yaxis_title='Valor (R$)',
             plot_bgcolor=COLORS['plot_bg'],
             paper_bgcolor=COLORS['card'],
             font=dict(color=COLORS['text']),
             margin=dict(l=40, r=40, t=60, b=40),
-            xaxis=dict(type='category'), 
+            xaxis=dict(type='category'),
             hovermode='x unified'
         )
         
@@ -405,7 +356,7 @@ def update_transaction_chart(selected_client):
     except Exception as e:
         print(f"Erro no gráfico: {str(e)}")
         return go.Figure()
-    
+
 @callback(
     Output('registrar-cliente-btn', 'disabled'),
     Input('cliente-select', 'value')
@@ -416,8 +367,7 @@ def toggle_register_button(selected_client):
         
     try:
         analysis_df = load_analysis_data()
-        exists = selected_client in analysis_df['cpf_cnpj'].values
-        return exists
+        return selected_client in analysis_df['cpf_cnpj'].values
     except:
         return True
 
@@ -429,11 +379,15 @@ def toggle_register_button(selected_client):
 )
 def handle_new_client_registration(n_clicks, cpf_cnpj):
     if n_clicks and cpf_cnpj:
-        success = register_new_client(cpf_cnpj)
-        if success:
-            return html.Div([
-                html.Span("✅ Cliente registrado para análise de 30 dias!", style={'color': COLORS['success']}),
-                html.Br(),
-                html.Small("Agora você pode registrar transações", style={'color': COLORS['highlight']})
-            ])
-    return html.Span("❌ Erro ao registrar cliente", style={'color': COLORS['danger']})
+        try:
+            success = register_new_client(cpf_cnpj)
+            if success:
+                return html.Div([
+                    html.Span("✅ Cliente registrado com sucesso!", style={'color': COLORS['success']}),
+                    html.Br(),
+                    html.Small("Transações podem ser registradas agora", style={'color': COLORS['highlight']})
+                ])
+            return html.Span("❌ Falha no registro", style={'color': COLORS['danger']})
+        except Exception as e:
+            return html.Span(f"❌ Erro: {str(e)}", style={'color': COLORS['danger']})
+    return html.Span("Selecione um cliente válido", style={'color': COLORS['text']})
