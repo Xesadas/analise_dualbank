@@ -396,7 +396,7 @@ def update_transaction_chart(selected_client):
             paper_bgcolor=COLORS['card'],
             font=dict(color=COLORS['text']),
             margin=dict(l=40, r=40, t=60, b=40),
-            xaxis=dict(type='category'),  # Forçar todas as datas no eixo X
+            xaxis=dict(type='category'), 
             hovermode='x unified'
         )
         
