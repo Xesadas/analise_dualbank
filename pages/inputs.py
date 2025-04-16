@@ -10,6 +10,7 @@ import traceback
 import logging
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
+
 logging.basicConfig(level=logging.DEBUG)
 
 #REFERENTE A ANÁLISE DE DADOS!!!
@@ -269,6 +270,10 @@ layout = dbc.Container([
     )
 ], fluid=True)
 
+# =============================================
+# CALLBACKS
+# =============================================
+
 @callback(
     Output('cliente-transacao', 'options'),
     Input('clientes-store', 'data')
@@ -316,64 +321,40 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
         return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
     
     try:
-        data_transacao = data_transacao.split('T')[0]
-        data_transacao = datetime.strptime(data_transacao, '%Y-%m-%d').strftime('%d/%m/%Y')
+        from openpyxl import load_workbook
+
+        # Processar dados
+        data_transacao = datetime.strptime(data_transacao.split('T')[0], '%Y-%m-%d').strftime('%d/%m/%Y')
         valor = float(valor)
-        
-        nova_transacao = {
-            'CPF/CNPJ': cliente,
-            'DATA': data_transacao,
-            'VALOR (R$)': valor,
-            'STATUS': 'PROCESSADO'
-        }
-        
-        sheets = []
+
+        # Carregar ou criar arquivo
         if os.path.exists(file_path):
-            with pd.ExcelFile(file_path) as excel:
-                sheets = excel.sheet_names
-                
-            if 'Transacoes' in sheets:
-                df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes')
+            wb = load_workbook(file_path)
+            if 'Transacoes' in wb.sheetnames:
+                ws = wb['Transacoes']
             else:
-                df_transacoes = pd.DataFrame()
+                ws = wb.create_sheet('Transacoes')
+                ws.append(['CPF/CNPJ', 'DATA', 'VALOR (R$)', 'STATUS'])
         else:
-            df_transacoes = pd.DataFrame()
-        
-        df_nova = pd.DataFrame([nova_transacao])
-        df_final = pd.concat([df_transacoes, df_nova], ignore_index=True)
-        
-        with pd.ExcelWriter(
-            file_path,
-            engine='openpyxl',
-            mode='a' if 'Cadastros' in sheets else 'w',
-            if_sheet_exists='replace'
-        ) as writer:
-            if 'Cadastros' in sheets:
-                df_cadastros = pd.read_excel(file_path, sheet_name='Sheet1')
-                df_cadastros.to_excel(writer, index=False, sheet_name='Sheet1')
-            
-            df_final.to_excel(writer, index=False, sheet_name='Transacoes')
-            
-            workbook = writer.book
-            if 'Transacoes' in workbook.sheetnames:
-                ws = workbook['Transacoes']
-                
-                header_fill = PatternFill(start_color='2d5f8a', end_color='2d5f8a', fill_type='solid')
-                header_font = Font(color='FFFFFF', bold=True)
-                
-                for cell in ws[1]:
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = Alignment(horizontal='center')
-                
-                column_widths = {'A': 20, 'B': 15, 'C': 15, 'D': 15}
-                for col, width in column_widths.items():
-                    ws.column_dimensions[col].width = width
-        
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Transacoes'
+            ws.append(['CPF/CNPJ', 'DATA', 'VALOR (R$)', 'STATUS'])
+
+        # Adicionar nova transação
+        ws.append([cliente, data_transacao, valor, 'PROCESSADO'])
+
+        # Garantir que a planilha principal existe
+        if 'Sheet1' not in wb.sheetnames:
+            wb.create_sheet('Sheet1')
+
+        # Salvar alterações
+        wb.save(file_path)
+
         return True, f"Transação de R${valor:.2f} registrada com sucesso! ✅", "success"
     
     except Exception as e:
-        logging.error(f"Erro ao salvar transação: {str(e)}")
+        logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
         return True, f"Erro: {str(e)} ❌", "danger"
 
 @callback(
@@ -405,21 +386,24 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
     file_path = 'stores.xlsx'
     
     try:
+        from openpyxl import load_workbook
+
+        # Processar datas
         def processar_data(date_str):
             if not date_str:
                 return None
             try:
-                return datetime.strptime(date_str, '%Y-%m-%d').date()
-            except Exception as e:
-                logging.error(f"Erro na conversão da data: {str(e)}")
+                return datetime.strptime(date_str, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except:
                 return None
 
-        data_cadastro_dt = processar_data(data_cadastro)
-        data_aprovacao_dt = processar_data(data_aprovacao)
+        data_cadastro = processar_data(data_cadastro)
+        data_aprovacao = processar_data(data_aprovacao)
 
+        # Criar dicionário com os dados
         novo_registro = {
-            'DATA DE CADASTRO': data_cadastro_dt,
-            'DATA DE APROVAÇÃO': data_aprovacao_dt,
+            'DATA DE CADASTRO': data_cadastro,
+            'DATA DE APROVAÇÃO': data_aprovacao,
             'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
             'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
             'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
@@ -439,69 +423,29 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             'Faturamento Fevereiro': 0
         }
 
-        sheets = []
+        # Carregar ou criar arquivo
         if os.path.exists(file_path):
-            with pd.ExcelFile(file_path) as excel:
-                sheets = excel.sheet_names
-                
-            if 'Cadastros' in sheets:
-                df_existente = pd.read_excel(file_path, sheet_name='Sheet1')
+            wb = load_workbook(file_path)
+            if 'Sheet1' in wb.sheetnames:
+                ws = wb['Sheet1']
             else:
-                df_existente = pd.DataFrame()
+                ws = wb.create_sheet('Sheet1')
+                # Adicionar cabeçalhos se nova planilha
+                ws.append(list(novo_registro.keys()))
         else:
-            df_existente = pd.DataFrame()
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Sheet1'
+            ws.append(list(novo_registro.keys()))
 
-        df_novo = pd.DataFrame([novo_registro])
-        df_final = pd.concat([df_existente, df_novo], ignore_index=True)
+        # Adicionar nova linha
+        ws.append(list(novo_registro.values()))
 
-        with pd.ExcelWriter(
-            file_path,
-            engine='openpyxl',
-            mode='a' if sheets else 'w',
-            if_sheet_exists='replace'
-        ) as writer:
-            if 'Transacoes' in sheets:
-                df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes')
-                df_transacoes.to_excel(writer, index=False, sheet_name='Transacoes')
-            
-            df_final.to_excel(writer, index=False, sheet_name='Sheet1')
-            
-            workbook = writer.book
-            worksheet = writer.sheets['Sheet1']
-            
-            header_fill = PatternFill(start_color='1a064d', end_color='1a064d', fill_type='solid')
-            header_font = Font(color='FFFFFF', bold=True)
-            header_border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
-            )
-            
-            for cell in worksheet[1]:
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.border = header_border
-                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-            
-            date_format = 'DD/MM/YYYY'
-            for col in ['A', 'B']:
-                for cell in worksheet[col][1:]:
-                    cell.number_format = date_format
-            
-            column_widths = {
-                'A': 15, 'B': 15, 'C': 25, 'D': 20, 'E': 25,
-                'F': 15, 'G': 20, 'H': 20, 'I': 12, 'J': 12,
-                'K': 15, 'L': 20, 'M': 15, 'N': 15, 'O': 18,
-                'P': 15, 'Q': 12, 'R': 20, 'S': 20, 'T': 20,
-                'U': 20
-            }
-            
-            for col, width in column_widths.items():
-                worksheet.column_dimensions[col].width = width
+        # Salvar alterações
+        wb.save(file_path)
 
         return True, "Cadastro salvo com sucesso! ✔️", "success"
     
     except Exception as e:
-        logging.error(f"Erro crítico: {str(e)}\n{traceback.format_exc()}")
+        logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
         return True, f"Erro ao salvar: {str(e)} ❌", "danger"
