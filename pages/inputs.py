@@ -38,9 +38,9 @@ layout = dbc.Container([
             html.Span("Campos obrigatórios*", className="text-muted mb-4 d-block"),
         ], className="container-header text-center mb-5"),
         
+        # Seção de Cadastro Principal
         dbc.Card([
             dbc.CardBody([
-                # Seção de Cadastro (original)
                 html.Div([
                     html.H5("Datas", className="form-section-title"),
                     dbc.Row([
@@ -70,53 +70,50 @@ layout = dbc.Container([
                 html.Div([
                     html.H5("Informações do Estabelecimento", className="form-section-title"),
                     dbc.Row([
-                        dbc.Col([
+                        dbc.Col(
                             dbc.Input(
                                 id='nome-estabelecimento',
                                 placeholder="Nome do Estabelecimento*",
                                 className='mb-4'
-                            )
-                        ], md=12),
-                        
-                        dbc.Col([
+                            ), md=12
+                        ),
+                        dbc.Col(
                             dbc.Input(
                                 id='cpf-cnpj',
                                 placeholder="CPF/CNPJ*",
                                 className='mb-4'
-                            )
-                        ], md=12)
+                            ), md=12
+                        )
                     ]),
                 ]),
                 
                 html.Div([
                     html.H5("Responsável", className="form-section-title"),
                     dbc.Row([
-                        dbc.Col([
+                        dbc.Col(
                             dbc.Input(
                                 id='responsavel',
                                 placeholder="Responsável do Estabelecimento*",
                                 className='mb-4'
-                            )
-                        ], md=6),
-                        
-                        dbc.Col([
+                            ), md=6
+                        ),
+                        dbc.Col(
                             dbc.Input(
                                 id='telefone',
                                 placeholder="Telefone*",
                                 type="tel",
                                 className='mb-4'
-                            )
-                        ], md=6)
+                            ), md=6
+                        )
                     ]),
-                    
                     dbc.Row([
-                        dbc.Col([
+                        dbc.Col(
                             dbc.Input(
                                 id='cpf-responsavel',
                                 placeholder="CPF do Responsável*",
                                 className='mb-4'
-                            )
-                        ], md=12)
+                            ), md=12
+                        )
                     ]),
                 ]),
                 
@@ -171,15 +168,14 @@ layout = dbc.Container([
                     ]),
                     
                     dbc.Row([
-                        dbc.Col([
+                        dbc.Col(
                             dbc.Input(
                                 id='pagseguro-email',
                                 placeholder="Email PagSeguro",
                                 type="email",
                                 className='mb-4'
-                            )
-                        ], md=8),
-                        
+                            ), md=8
+                        ),
                         dbc.Col([
                             dbc.Label("Plano PagSeguro"),
                             dcc.Dropdown(
@@ -195,7 +191,7 @@ layout = dbc.Container([
                         ], md=4)
                     ]),
                 ]),
-                      
+                
                 dbc.Button(
                     "Salvar Cadastro", 
                     id='salvar-button', 
@@ -205,11 +201,10 @@ layout = dbc.Container([
             ])
         ], className="cadastro-container shadow-lg mb-5"),
         
-        # Nova Seção de Transações
+        # Seção de Transações
         dbc.Card([
             dbc.CardBody([
                 html.H5("Registro de Transações Diárias", className="form-section-title"),
-                
                 dbc.Row([
                     dbc.Col([
                         dbc.Label("Selecionar Cliente"),
@@ -242,7 +237,6 @@ layout = dbc.Container([
                         )
                     ], md=3)
                 ]),
-                
                 dbc.Button(
                     "Registrar Transação",
                     id='salvar-transacao',
@@ -250,10 +244,69 @@ layout = dbc.Container([
                     className='mt-2'
                 )
             ])
+        ], style=transaction_style, className="shadow-sm mb-4"),
+        
+        # Seção de Faturamento Mensal
+        dbc.Card([
+            dbc.CardBody([
+                html.H5("Registro de Faturamento Mensal", className="form-section-title"),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Selecionar Cliente"),
+                        dcc.Dropdown(
+                            id='cliente-faturamento',
+                            options=[],
+                            placeholder="CPF/CNPJ do Cliente*",
+                            className='mb-3'
+                        )
+                    ], md=6),
+                    
+                    dbc.Col([
+                        dbc.Label("Mês"),
+                        dcc.Dropdown(
+                            id='mes-faturamento',
+                            options=[
+                                {'label': 'Dezembro', 'value': 'Dezembro'},
+                                {'label': 'Janeiro', 'value': 'Janeiro'},
+                                {'label': 'Fevereiro', 'value': 'Fevereiro'},
+                                {'label': 'Março', 'value': 'Marco'},
+                                {'label': 'Abril', 'value': 'Abril'},
+                                {'label': 'Maio', 'value': 'Maio'},
+                                {'label': 'Junho', 'value': 'Junho'},
+                                {'label': 'Julho', 'value': 'Julho'},
+                                {'label': 'Agosto', 'value': 'Agosto'},
+                                {'label': 'Setembro', 'value': 'Setembro'},
+                                {'label': 'Outubro', 'value': 'Outubro'},
+                                {'label': 'Novembro', 'value': 'Novembro'},
+                            ],
+                            placeholder="Selecione o Mês*",
+                            className='mb-3'
+                        )
+                    ], md=3),
+                    
+                    dbc.Col([
+                        dbc.Label("Valor (R$)"),
+                        dbc.Input(
+                            id='valor-faturamento',
+                            type='number',
+                            step=0.01,
+                            placeholder="0.00",
+                            className='mb-3'
+                        )
+                    ], md=3)
+                ]),
+                dbc.Button(
+                    "Salvar Faturamento",
+                    id='salvar-faturamento',
+                    color="primary",
+                    className='mt-2'
+                )
+            ])
         ], style=transaction_style, className="shadow-sm")
         
     ], className="py-5"),
     
+    # Componentes de Armazenamento e Alertas
     dcc.Store(id='clientes-store', storage_type='memory'),
     
     dbc.Alert(
@@ -262,15 +315,19 @@ layout = dbc.Container([
         duration=4000, 
         className="animate__animated animate__fadeInRight"
     ),
-    
     dbc.Alert(
         id='alert-transacao', 
         is_open=False, 
         duration=4000,
         className="animate__animated animate__fadeInRight"
+    ),
+    dbc.Alert(
+        id='alert-faturamento', 
+        is_open=False, 
+        duration=4000,
+        className="animate__animated animate__fadeInRight"
     )
 ], fluid=True)
-
 # =============================================
 # CALLBACKS
 # =============================================
@@ -446,6 +503,91 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
         wb.save(file_path)
 
         return True, "Cadastro salvo com sucesso! ✔️", "success"
+    
+    except Exception as e:
+        logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
+        return True, f"Erro ao salvar: {str(e)} ❌", "danger"
+    
+@callback(
+    Output('cliente-faturamento', 'options'),
+    Input('clientes-store', 'data')
+)
+def carregar_clientes_faturamento(_):
+    file_path = 'stores.xlsx'
+    try:
+        if os.path.exists(file_path):
+            df = pd.read_excel(
+                file_path, 
+                sheet_name='Sheet1', 
+                usecols=['ESTABELECIMENTO CPF/CNPJ'], 
+                dtype={'ESTABELECIMENTO CPF/CNPJ': str}
+            )
+            
+            options = [
+                {'label': cnpj, 'value': cnpj} 
+                for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].dropna().unique()
+                if isinstance(cnpj, str) and cnpj.strip() != ''
+            ]
+            
+            return options
+        return []
+    except Exception as e:
+        logging.error(f"Erro ao carregar clientes (faturamento): {str(e)}")
+        return []
+
+@callback(
+    Output('alert-faturamento', 'is_open'),
+    Output('alert-faturamento', 'children'),
+    Output('alert-faturamento', 'color'),
+    Input('salvar-faturamento', 'n_clicks'),
+    [
+        State('cliente-faturamento', 'value'),
+        State('mes-faturamento', 'value'),
+        State('valor-faturamento', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def salvar_faturamento(n_clicks, cliente, mes, valor):
+    if not all([cliente, mes, valor is not None]):
+        return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
+    
+    try:
+        from openpyxl import load_workbook
+
+        file_path = 'stores.xlsx'
+        wb = load_workbook(file_path)
+        ws = wb['Sheet1']
+        
+        # Encontrar coluna do mês
+        target_column = f'Faturamento {mes}'
+        header = [cell.value for cell in ws[1]]
+        try:
+            col_idx = header.index(target_column) + 1  # Coluna base 1
+        except ValueError:
+            wb.close()
+            return True, f"Coluna '{target_column}' não existe! ❌", "danger"
+        
+        # Encontrar linha do cliente
+        cpf_cnpj_col = 'ESTABELECIMENTO CPF/CNPJ'
+        cpf_cnpj_idx = header.index(cpf_cnpj_col) + 1
+        row_found = None
+        
+        for row in ws.iter_rows(min_row=2):
+            current_cpf = str(row[cpf_cnpj_idx - 1].value).strip()
+            if current_cpf == cliente.strip():
+                row_found = row[0].row
+                break
+        
+        if not row_found:
+            wb.close()
+            return True, "Cliente não encontrado! ❌", "danger"
+        
+        # Atualizar célula
+        ws.cell(row=row_found, column=col_idx, value=valor)
+        wb.save(file_path)
+        wb.close()
+        
+        return True, f"Faturamento de R${valor:.2f} salvo para {mes}! ✅", "success"
     
     except Exception as e:
         logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
