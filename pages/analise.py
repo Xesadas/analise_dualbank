@@ -473,7 +473,7 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
                 paper_bgcolor=COLORS['card'],
                 font=dict(color=COLORS['text']),
                 margin=dict(l=50, r=50, t=80, b=50),
-                title='Evolução do Faturamento com Previsão para Março',
+                title='Evolução do Faturamento com Previsão para o fim dos tempos',
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
