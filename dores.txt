@@ -5,4 +5,5 @@ fazer o acompanhamento, essas devem ser as etapas finais do projeto.
 -Remoção de Dias Restantes
 -Input de meses até dezembro
 -Atualização de média de valores
--
+- Este é um commit teste
+
