@@ -6,7 +6,6 @@ server = app.server
 
 SERVER_DATA_PATH = '/data/stores.xlsx' 
 
-# Estilos
 link_style = {
     'color': 'white',
     'marginRight': '20px',
@@ -40,8 +39,6 @@ app.layout = html.Div([
     ], style=navbar_style),
     dash.page_container
 ])
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
