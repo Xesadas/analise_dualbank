@@ -7,8 +7,6 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 
-
-
 #REFERENTE A ANÁLISE DE DADOS!!!
 
 register_page(
@@ -131,8 +129,6 @@ if not options:
 #=====================================
 # PRÉ CARREGAMENTO DE DADOS 
 #=====================================
-
-
 
 cached_data = {
     'df_cadastros': pd.DataFrame(),
