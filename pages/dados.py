@@ -33,13 +33,55 @@ def initialize_excel():
         dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
         for sheet in dfs:
             df = dfs[sheet]
+            # Gera novos IDs para linhas com NaN ou valores inválidos
+            mask = df['temp_id'].isna() | (df['temp_id'] == 'nan') | (df['temp_id'] == 'None')
+            df.loc[mask, 'temp_id'] = [str(uuid.uuid4()) for _ in range(mask.sum())]
+            
+            # Garante que todas as linhas tenham UUID válido
             if 'temp_id' not in df.columns:
                 df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+            
             df['temp_id'] = df['temp_id'].astype(str)
         
         with pd.ExcelWriter(excel_file, engine='openpyxl', mode='w') as writer:
             for sheet_name, df in dfs.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+def load_excel():
+    dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+    for sheet in dfs:
+        df = dfs[sheet]
+        # Converter para string e substituir valores inválidos
+        df['temp_id'] = df['temp_id'].astype(str)
+        df['temp_id'] = df['temp_id'].replace(['nan', 'None', '<NA>'], pd.NA)
+        
+        # Gerar novos IDs para valores faltantes
+        nan_count = df['temp_id'].isna().sum()
+        if nan_count > 0:
+            new_ids = [str(uuid.uuid4()) for _ in range(nan_count)]
+            df.loc[df['temp_id'].isna(), 'temp_id'] = new_ids
+        
+        df['temp_id'] = df['temp_id'].astype(str)
+    return dfs
+
+def save_excel(modified_data):
+    try:
+        with pd.ExcelWriter(
+            excel_file,
+            engine='openpyxl',
+            mode='w'  # Modo de sobrescrita completo
+        ) as writer:
+            for sheet_name in sheet_names:  # Usa a lista original de sheets
+                df = modified_data.get(sheet_name, pd.DataFrame())
+                if not df.empty:
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+        print("Arquivo salvo com sucesso!")
+    except PermissionError:
+        print("ERRO: Feche o Excel antes de salvar!")
+        raise
+    except Exception as e:
+        print(f"Erro inesperado: {str(e)}")
+        raise
 
 # Executa a inicialização uma vez
 initialize_excel()
@@ -156,32 +198,6 @@ layout = html.Div([
     ], className='container-dados')
 ], className='main-container')
 
-def load_excel():
-    dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
-    for sheet in dfs:
-        df = dfs[sheet]
-        df['temp_id'] = df['temp_id'].astype(str)  # Garante tipo string
-    return dfs
-
-def save_excel(modified_data):
-    try:
-        with pd.ExcelWriter(
-            excel_file,
-            engine='openpyxl',
-            mode='w'  # Modo de sobrescrita completo
-        ) as writer:
-            for sheet_name in sheet_names:  # Usa a lista original de sheets
-                df = modified_data.get(sheet_name, pd.DataFrame())
-                if not df.empty:
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-        print("Arquivo salvo com sucesso!")
-    except PermissionError:
-        print("ERRO: Feche o Excel antes de salvar!")
-        raise
-    except Exception as e:
-        print(f"Erro inesperado: {str(e)}")
-        raise
-
 @callback(
     Output('data-store', 'data'),
     Input('sheet-selector', 'value')
@@ -233,25 +249,21 @@ def delete_row(n_clicks, selected_rows, data, current_sheet):
         return "🔴 Selecione uma linha antes de apagar!", dash.no_update
     
     try:
-        # 1. Carrega dados completos do Excel
         dfs = load_excel()
         original_df = dfs[current_sheet].copy()
-        
-        # 2. Obtém os UUIDs selecionados DA VISÃO ATUAL (data-store)
         current_df = pd.DataFrame(data)
-        selected_uuids = current_df.iloc[selected_rows]['temp_id'].tolist()
         
-        # 3. Remove linhas do DataFrame ORIGINAL usando os UUIDs
-        updated_df = original_df[~original_df['temp_id'].isin(selected_uuids)]
+        # Obter IDs de forma segura
+        selected_uuids = current_df.iloc[selected_rows]['temp_id'].astype(str).tolist()
         
-        # 4. Atualiza dados mantendo todas as abas
+        # Filtro preciso usando query
+        updated_df = original_df.query("temp_id not in @selected_uuids")
+        
         new_data = {sheet: dfs[sheet] for sheet in sheet_names}
         new_data[current_sheet] = updated_df
         
-        # 5. Salva o Excel com todas as abas
         save_excel(new_data)
         
-        # 6. Atualiza o data-store com os dados atualizados
         return "✅ Linha(s) apagada(s) permanentemente!", updated_df.to_dict('records')
     
     except PermissionError:
