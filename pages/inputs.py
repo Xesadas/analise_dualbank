@@ -30,6 +30,10 @@ transaction_style = {
     'padding': '20px',
     'marginTop': '30px'
 }
+
+# =============================================
+# LAYOUT
+# =============================================
     
 layout = dbc.Container([
     html.Div([
