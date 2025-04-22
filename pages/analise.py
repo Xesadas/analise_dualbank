@@ -395,16 +395,16 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
         return fig_mensal, fig_diario, [], []
 
     try:
-        load_data()  # Atualiza dados do cache
+        load_data()
         
         # =====================================
-        # PROCESSAMENTO MENSAL CORRIGIDO
+        # NOVA LÓGICA DE MESES
         # =====================================
         if not cached_data['df_long'].empty:
             filtered_mensal = cached_data['df_long'].copy()
             filtered_mensal = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)]
             
-            # Converter para numérico e tratar dados
+            # Converter para numérico
             filtered_mensal['Faturamento'] = pd.to_numeric(
                 filtered_mensal['Faturamento'], 
                 errors='coerce'
@@ -419,22 +419,32 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
                 if cliente_data.empty:
                     continue
                 
-                # Determinar meses válidos ordenados
-                meses_validos = [m for m in meses_ordem if m in cliente_data['Mês'].unique()]
-                if not meses_validos:
+                # CORREÇÃO 1: Ordenar corretamente por categoria temporal
+                cliente_data = cliente_data.sort_values('Mês', key=lambda x: x.cat.codes)
+                
+                # CORREÇÃO 2: Pegar último mês COM DADOS VÁLIDOS (>0)
+                cliente_data_valida = cliente_data[cliente_data['Faturamento'] > 0]
+                if cliente_data_valida.empty:
                     continue
+                    
+                ultimo_mes = cliente_data_valida['Mês'].iloc[-1]
                 
-                ultimo_mes = meses_validos[-1]
-                proximo_mes = get_proximo_mes(ultimo_mes)
-                
+                # CORREÇÃO 3: Nova lógica de próximo mês
+                try:
+                    idx_proximo = meses_ordem.index(ultimo_mes) + 1
+                    if idx_proximo >= len(meses_ordem):
+                        proximo_mes = meses_ordem[0]  # Volta para Janeiro
+                    else:
+                        proximo_mes = meses_ordem[idx_proximo]
+                except ValueError:
+                    proximo_mes = 'Janeiro'
+
                 # Calcular variação
-                cliente_data = cliente_data.sort_values('Mês', key=lambda x: x.map(meses_ordem.index))
                 cliente_data['Faturamento Anterior'] = cliente_data['Faturamento'].shift(1)
                 cliente_data['Variação %'] = (cliente_data['Faturamento'] / cliente_data['Faturamento Anterior'].replace(0, np.nan) - 1) * 100
                 
-                # Calcular previsão apenas com dados válidos
-                dados_calculo = cliente_data[cliente_data['Mês'].isin(meses_validos)]
-                valores_validos = dados_calculo['Faturamento'].replace(0, np.nan).dropna()
+                # Calcular previsão
+                valores_validos = cliente_data_valida['Faturamento']
                 previsao = np.mean(valores_validos) if not valores_validos.empty else 0
                 
                 # Adicionar previsão
@@ -446,32 +456,25 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
                     'Previsão': True
                 })
 
-                # Plotar dados históricos
+                # Plotar dados
                 fig_mensal.add_trace(go.Scatter(
                     x=cliente_data['Mês'],
                     y=cliente_data['Faturamento'],
                     name=cliente,
                     mode='lines+markers',
                     line=dict(width=3, color=cores[idx]),
-                    marker=dict(size=10, color=cores[idx]),
-                    hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
+                    marker=dict(size=10, color=cores[idx])
                 ))
 
-                # Plotar previsão se aplicável
+                # Plotar previsão
                 if proximo_mes in meses_ordem:
                     fig_mensal.add_trace(go.Scatter(
                         x=[ultimo_mes, proximo_mes],
-                        y=[cliente_data[cliente_data['Mês'] == ultimo_mes]['Faturamento'].values[0], previsao],
+                        y=[cliente_data_valida['Faturamento'].iloc[-1], previsao],
                         mode='lines+markers',
-                        line=dict(dash='dot', color=cores[idx], width=2),
-                        marker=dict(
-                            size=14,
-                            color=cores[idx],
-                            symbol='diamond',
-                            line=dict(width=2, color='white')
-                        ),
-                        showlegend=False,
-                        hoverinfo='y'
+                        line=dict(dash='dot', color=cores[idx]),
+                        marker=dict(symbol='diamond', size=12),
+                        showlegend=False
                     ))
 
                     # Adicionar anotações de variação
@@ -536,7 +539,7 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
             table_data = table_df.to_dict('records')
 
         # =====================================
-        # PROCESSAMENTO DIÁRIO (MANTIDO)
+        # PROCESSAMENTO DIÁRIO 
         # =====================================
         if not cached_data['daily_data'].empty:
             filtered_diario = cached_data['daily_data'][
