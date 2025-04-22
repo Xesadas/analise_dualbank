@@ -86,6 +86,41 @@ layout = dbc.Container([
                         )
                     ]),
                 ]),
+                    dbc.Row([
+                        dbc.Col(
+                            dbc.Input(
+                                id='cpf-cnpj',
+                                placeholder="CPF/CNPJ*",
+                                className='mb-4'
+                            ), md=6
+                        ),
+                        dbc.Col([
+                            dbc.Label("Tipo de Comércio*", className="mb-2"),
+                            dcc.Dropdown(
+                                id='tipo-comercio',
+                                options=[
+                                    {'label': 'Restaurantes', 'value': 'Restaurantes'},
+                                    {'label': 'Cafeterias', 'value': 'Cafeterias'},
+                                    {'label': 'Lanchonetes', 'value': 'Lanchonetes'},
+                                    {'label': 'Padarias e Confeitarias', 'value': 'Padarias e Confeitarias'},
+                                    {'label': 'Mercados e Mercearias', 'value': 'Mercados e Mercearias'},
+                                    {'label': 'Lojas de Roupas e Acessórios', 'value': 'Lojas de Roupas e Acessórios'},
+                                    {'label': 'Farmácias e Drogarias', 'value': 'Farmácias e Drogarias'},
+                                    {'label': 'Salões de Beleza e Barbearias', 'value': 'Salões de Beleza e Barbearias'},
+                                    {'label': 'Clínicas Médicas', 'value': 'Clínicas Médicas'},
+                                    {'label': 'Pet Shops e Clínicas Veterinárias', 'value': 'Pet Shops e Clínicas Veterinárias'},
+                                    {'label': 'Academias e Estúdios de Fitness', 'value': 'Academias e Estúdios de Fitness'},
+                                    {'label': 'Lojas de Eletrônicos e Informática', 'value': 'Lojas de Eletrônicos e Informática'},
+                                    {'label': 'Oficinas Mecânicas e Auto Peças', 'value': 'Oficinas Mecânicas e Auto Peças'},
+                                    {'label': 'Lojas de Materiais de Construção', 'value': 'Lojas de Materiais de Construção'},
+                                    {'label': 'Serviços', 'value': 'Serviços'},
+                                    {'label': 'Outros', 'value': 'Outros'}
+                                ],
+                                placeholder="Selecione o Tipo de Comércio*",
+                                className='mb-4'
+                            )
+                        ], md=6)
+                    ]),
                 
                 html.Div([
                     html.H5("Responsável", className="form-section-title"),
@@ -425,6 +460,7 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
         State('data-aprovacao', 'date'),
         State('nome-estabelecimento', 'value'),
         State('cpf-cnpj', 'value'),
+        State('tipo-comercio', 'value'),
         State('responsavel', 'value'),
         State('telefone', 'value'),
         State('cpf-responsavel', 'value'),
@@ -439,7 +475,7 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
 )
 def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabelecimento, 
                    cpf_cnpj, responsavel, telefone, cpf_responsavel, representante, 
-                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro):
+                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro, tipo_comercio):
     
     file_path = 'stores.xlsx'
     
@@ -464,6 +500,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             'DATA DE APROVAÇÃO': data_aprovacao,
             'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
             'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
+            'TIPO DE COMÉRCIO': tipo_comercio or 'Outros',
             'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
             'RESPONSÁVEL TELEFONE': telefone or '',
             'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
