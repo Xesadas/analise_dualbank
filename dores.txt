@@ -1,9 +1,15 @@
-Lidar com os arquivos corrompidos, Configurar os inputs para ficar dentro do servidor e não no repositório, arrumar os dados,py para lidar com os valores de novos clientes e por fim
+Configurar os inputs para ficar dentro do servidor e não no repositório, arrumar os dados,py para lidar com os valores de novos clientes e por fim
 fazer o acompanhamento, essas devem ser as etapas finais do projeto.
 
 -Atualização de inputs
--Remoção de Dias Restantes
--Input de meses até dezembro
+
 -Atualização de média de valores
-- Este é um commit teste
+
+- Teremos também de criar uma previsão de comparação
+    Será se eu arrumo isso essa semana ainda?  
+        talvez
+            olha que legal
+                eu escrevendo texto identando
+                    blablabla
+                        blebleble
 
