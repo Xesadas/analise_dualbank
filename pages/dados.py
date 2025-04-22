@@ -11,8 +11,13 @@ register_page(
     title='Dados Clientes',
     name='Dados dos clientes'
 )
-excel_path = Path('stores.xlsx')
 
+
+# =============================================
+# INICIALIZAÇÃO DO ARQUIVO EXCEL
+# =============================================
+
+excel_path = Path('stores.xlsx')
 excel_file = 'stores.xlsx'
 sheet_names = pd.ExcelFile(excel_file, engine='openpyxl').sheet_names
 
@@ -83,8 +88,11 @@ def save_excel(modified_data):
         print(f"Erro inesperado: {str(e)}")
         raise
 
-# Executa a inicialização uma vez
 initialize_excel()
+
+# =============================================
+# LAYOUT
+# =============================================
 
 layout = html.Div([
     html.Div([
@@ -197,6 +205,10 @@ layout = html.Div([
         html.Div(id='dados-output-mensagem', style={'color': 'white', 'padding': '10px'})  # Changed ID
     ], className='container-dados')
 ], className='main-container')
+
+# =============================================
+# CALLBACKS
+# =============================================
 
 @callback(
     Output('data-store', 'data'),
