@@ -7,8 +7,6 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 
-#REFERENTE A ANÁLISE DE DADOS!!!
-
 register_page(
     __name__,
     path='/',
@@ -20,14 +18,10 @@ register_page(
 # CARREGAMENTO DE DADOS
 # =====================================
 try:
-    # Carregar dados de cadastros
     df_cadastros = pd.read_excel('stores.xlsx', sheet_name='Sheet1', engine='openpyxl')
-    
-    # Carregar transações diárias
     df_transacoes = pd.read_excel('stores.xlsx', sheet_name='Transacoes', engine='openpyxl')
     df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
     
-    # Mesclar dados para obter nomes
     df = pd.merge(df_transacoes, 
                 df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
                 left_on='CPF/CNPJ',
@@ -48,16 +42,36 @@ meses = {
     'Faturamento Janeiro': 'Janeiro',
     'Faturamento Fevereiro': 'Fevereiro',
     'Faturamento Marco': 'Março',
-    'Faturamento Abril': 'abril',
-    'Faturamento Maio': 'maio',
-    'Faturamento Junho': 'junho',
-    'Faturamento Julho': 'julho',
-    'Faturamento Agosto': 'agosto',
-    'Faturamento Setembro': 'setembro',
-    'Faturamento Outubro': 'outubro',
-    'Faturamento Novembro': 'novembro',
-    #'Faturamento Dezembro': 'dezembro'
+    'Faturamento Abril': 'Abril',
+    'Faturamento Maio': 'Maio',
+    'Faturamento Junho': 'Junho',
+    'Faturamento Julho': 'Julho',
+    'Faturamento Agosto': 'Agosto',
+    'Faturamento Setembro': 'Setembro',
+    'Faturamento Outubro': 'Outubro',
+    'Faturamento Novembro': 'Novembro',
+    'Faturamento Dezembro.1': 'Dezembro Atual'
+}
 
+meses_ordem = [
+    'Dezembro', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio',
+    'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro Atual'
+]
+
+proximo_mes_map = {
+    'Dezembro': 'Janeiro',
+    'Janeiro': 'Fevereiro',
+    'Fevereiro': 'Março',
+    'Março': 'Abril',
+    'Abril': 'Maio',
+    'Maio': 'Junho',
+    'Junho': 'Julho',
+    'Julho': 'Agosto',
+    'Agosto': 'Setembro',
+    'Setembro': 'Outubro',
+    'Outubro': 'Novembro',
+    'Novembro': 'Dezembro Atual',
+    'Dezembro Atual': 'Janeiro'
 }
 
 if not df_cadastros.empty:
@@ -67,15 +81,22 @@ if not df_cadastros.empty:
         var_name='Mês',
         value_name='Faturamento'
     )
-    
     df_long['Mês'] = df_long['Mês'].map(meses)
-    df_long['Mês'] = pd.Categorical(
-        df_long['Mês'], 
-        categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro'], 
-        ordered=True
-    )
+    df_long['Mês'] = pd.Categorical(df_long['Mês'], categories=meses_ordem, ordered=True)
 else:
     df_long = pd.DataFrame()
+
+
+# =====================================
+# FUNÇÕES AUXILIARES
+# =====================================
+def get_proximo_mes(mes_atual):
+    return proximo_mes_map.get(mes_atual, 'Janeiro')
+
+def calcular_previsao(cliente_data):
+    """Calcula a média dos meses VÁLIDOS (não zero/não vazios)"""
+    valores = cliente_data['Faturamento'].replace(0, np.nan).dropna()
+    return np.mean(valores) if not valores.empty else 0
 
 
 
@@ -160,11 +181,10 @@ def load_data():
                 how='left'
             )
             
-            # Prepara df_long
-            meses = {'Faturamento Dezembro': 'Dezembro', 'Faturamento Janeiro': 'Janeiro', 'Faturamento Fevereiro': 'Fevereiro'}
+            # Prepara df_long CORREÇÃO AQUI
             df_long = df_cadastros.melt(
                 id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
-                value_vars=meses.keys(),
+                value_vars=meses.keys(),  # Usa todas as colunas de meses
                 var_name='Mês',
                 value_name='Faturamento'
             ) if not df_cadastros.empty else pd.DataFrame()
@@ -172,7 +192,7 @@ def load_data():
             df_long['Mês'] = df_long['Mês'].map(meses)
             df_long['Mês'] = pd.Categorical(
                 df_long['Mês'], 
-                categories=['Dezembro', 'Janeiro', 'Fevereiro', 'Março'], 
+                categories=meses_ordem,  # Usa a lista completa de meses
                 ordered=True
             )
             
@@ -199,6 +219,30 @@ def load_data():
         print(f"Erro ao carregar dados: {str(e)}")
     
     return cached_data
+
+def determinar_meses_relevantes(df):
+    # Encontrar o último mês com dados
+    meses_disponiveis = df['Mês'].unique()
+    meses_validos = [m for m in meses_ordem if m in meses_disponiveis]
+    
+    if not meses_validos:
+        return [], None, None
+    
+    ultimo_mes = meses_validos[-1]
+    idx_ultimo = meses_ordem.index(ultimo_mes)
+    
+    # Determinar meses para mostrar (últimos 3 + previsão)
+    start_idx = max(0, idx_ultimo - 2)
+    meses_mostrar = meses_ordem[start_idx:idx_ultimo+1]
+    
+    # Calcular próximo mês para previsão
+    if idx_ultimo < len(meses_ordem) - 1:
+        proximo_mes = meses_ordem[idx_ultimo + 1]
+    else:  # Se for dezembro, prever janeiro
+        proximo_mes = meses_ordem[0]
+    
+    return meses_mostrar, ultimo_mes, proximo_mes
+
     
 
 # =====================================
@@ -332,20 +376,6 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 #=====================================
 
 @callback(
-    Output('cliente-dropdown', 'options'),
-    Input('interval-component', 'n_intervals')
-)
-
-def update_dropdown(n):
-    data = load_data()
-    df_cadastros = data['df_cadastros']
-    options = [{'label': str(nome), 'value': str(nome)} 
-               for nome in df_cadastros['ESTABELECIMENTO NOME1'].unique() 
-               if pd.notna(nome) and str(nome).strip() != '']
-    return options if options else [{'label': 'Sem dados', 'value': 'NO_DATA'}]
-
-
-@callback(
     Output('grafico-mensal', 'figure'),
     Output('grafico-diario', 'figure'),
     Output('tabela-variacao', 'data'),
@@ -355,97 +385,115 @@ def update_dropdown(n):
     Input('date-range', 'end_date'),
     Input('interval-component', 'n_intervals') 
 )
-def update_analysis(clientes_selecionados, start_date, end_date,n):
-
-    data = load_data()
-    
+def update_analysis(clientes_selecionados, start_date, end_date, n):
     fig_mensal = go.Figure()
     fig_diario = go.Figure()
     table_data = []
     columns = []
 
-    # Verificação de seleção vazia
     if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
         return fig_mensal, fig_diario, [], []
 
     try:
+        load_data()  # Atualiza dados do cache
+        
         # =====================================
-        # PROCESSAMENTO MENSAL COM PREVISÃO 
+        # PROCESSAMENTO MENSAL CORRIGIDO
         # =====================================
-        if not df_long.empty:
-            # Filtragem e cálculos originais
-            filtered_mensal = df_long[df_long['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)].copy()
-            filtered_mensal['Faturamento Anterior'] = filtered_mensal.groupby('ESTABELECIMENTO NOME1')['Faturamento'].shift(1)
+        if not cached_data['df_long'].empty:
+            filtered_mensal = cached_data['df_long'].copy()
+            filtered_mensal = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)]
             
-            
+            # Converter para numérico e tratar dados
+            filtered_mensal['Faturamento'] = pd.to_numeric(
+                filtered_mensal['Faturamento'], 
+                errors='coerce'
+            ).fillna(0)
+
             previsoes = []
-            for cliente in clientes_selecionados:
-                cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
-                valores = cliente_data['Faturamento'].values
-                
-                
-                if len(valores) >= 2:
-                    pesos = [0.7, 0.3]
-                    previsao = np.average(valores[-2:], weights=pesos)
-                else:
-                    previsao = np.mean(valores) if len(valores) > 0 else 0
-                
-                previsoes.append({
-                    'ESTABELECIMENTO NOME1': cliente,
-                    'Mês': 'Março',
-                    'Faturamento': previsao,
-                    'Previsão': True
-                })
-            
-            # Mesclando dados reais + previsão
-            df_previsao = pd.DataFrame(previsoes)
-            df_completo = pd.concat([filtered_mensal, df_previsao])
-            
-            # Criação do gráfico mensal com detalhes visuais originais
-            meses_ordem = ['Dezembro', 'Janeiro', 'Fevereiro', 'Março']
             cores = px.colors.qualitative.Plotly
             
             for idx, cliente in enumerate(clientes_selecionados):
-                dados_cliente = df_completo[df_completo['ESTABELECIMENTO NOME1'] == cliente]
+                cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
                 
-                # Linha principal 
+                if cliente_data.empty:
+                    continue
+                
+                # Determinar meses válidos ordenados
+                meses_validos = [m for m in meses_ordem if m in cliente_data['Mês'].unique()]
+                if not meses_validos:
+                    continue
+                
+                ultimo_mes = meses_validos[-1]
+                proximo_mes = get_proximo_mes(ultimo_mes)
+                
+                # Calcular variação
+                cliente_data = cliente_data.sort_values('Mês', key=lambda x: x.map(meses_ordem.index))
+                cliente_data['Faturamento Anterior'] = cliente_data['Faturamento'].shift(1)
+                cliente_data['Variação %'] = (cliente_data['Faturamento'] / cliente_data['Faturamento Anterior'].replace(0, np.nan) - 1) * 100
+                
+                # Calcular previsão apenas com dados válidos
+                dados_calculo = cliente_data[cliente_data['Mês'].isin(meses_validos)]
+                valores_validos = dados_calculo['Faturamento'].replace(0, np.nan).dropna()
+                previsao = np.mean(valores_validos) if not valores_validos.empty else 0
+                
+                # Adicionar previsão
+                previsoes.append({
+                    'ESTABELECIMENTO NOME1': cliente,
+                    'Mês': proximo_mes,
+                    'Faturamento': previsao,
+                    'Variação %': None,
+                    'Previsão': True
+                })
+
+                # Plotar dados históricos
                 fig_mensal.add_trace(go.Scatter(
-                    x=dados_cliente['Mês'],
-                    y=dados_cliente['Faturamento'],
+                    x=cliente_data['Mês'],
+                    y=cliente_data['Faturamento'],
                     name=cliente,
                     mode='lines+markers',
                     line=dict(width=3, color=cores[idx]),
                     marker=dict(size=10, color=cores[idx]),
                     hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
                 ))
-                
-                # Linha de previsão pontilhada 
-                if not dados_cliente[dados_cliente['Mês'] == 'Março'].empty:
+
+                # Plotar previsão se aplicável
+                if proximo_mes in meses_ordem:
                     fig_mensal.add_trace(go.Scatter(
-                        x=['Fevereiro', 'Março'],
-                        y=[
-                            dados_cliente[dados_cliente['Mês'] == 'Fevereiro']['Faturamento'].values[0],
-                            dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]
-                        ],
-                        mode='lines',
+                        x=[ultimo_mes, proximo_mes],
+                        y=[cliente_data[cliente_data['Mês'] == ultimo_mes]['Faturamento'].values[0], previsao],
+                        mode='lines+markers',
                         line=dict(dash='dot', color=cores[idx], width=2),
-                        showlegend=False,
-                        hoverinfo='none'
-                    ))
-                    
-                    # Marcador de diamante para previsão
-                    fig_mensal.add_trace(go.Scatter(
-                        x=['Março'],
-                        y=[dados_cliente[dados_cliente['Mês'] == 'Março']['Faturamento'].values[0]],
-                        mode='markers+text',
-                        marker=dict(size=14, color=cores[idx], symbol='diamond'),
-                        text=[f'Previsão: R$ {dados_cliente[dados_cliente["Mês"] == "Março"]["Faturamento"].values[0]:,.2f}'],
-                        textposition='top center',
+                        marker=dict(
+                            size=14,
+                            color=cores[idx],
+                            symbol='diamond',
+                            line=dict(width=2, color='white')
+                        ),
                         showlegend=False,
                         hoverinfo='y'
                     ))
 
-            # Layout do gráfico mantendo estilo original
+                    # Adicionar anotações de variação
+                    for _, row in cliente_data.iterrows():
+                        if pd.notna(row['Variação %']):
+                            symbol = '▲' if row['Variação %'] > 0 else '▼'
+                            color = COLORS['success'] if row['Variação %'] > 0 else COLORS['danger']
+                            fig_mensal.add_annotation(
+                                x=row['Mês'],
+                                y=row['Faturamento'],
+                                text=f'{symbol} {abs(row["Variação %"]):.1f}%',
+                                showarrow=False,
+                                font=dict(color=color, size=12),
+                                xshift=15,
+                                yshift=10
+                            )
+
+            # Combinar dados para tabela
+            df_previsao = pd.DataFrame(previsoes)
+            df_completo = pd.concat([filtered_mensal, df_previsao], ignore_index=True)
+            
+            # Atualizar layout do gráfico
             fig_mensal.update_layout(
                 xaxis=dict(
                     categoryorder='array',
@@ -469,7 +517,7 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
                 paper_bgcolor=COLORS['card'],
                 font=dict(color=COLORS['text']),
                 margin=dict(l=50, r=50, t=80, b=50),
-                title='Evolução do Faturamento com Previsão para o fim dos tempos',
+                title=f'Previsão de Faturamento',
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
@@ -479,40 +527,24 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
                 )
             )
 
-            # Adicionar setas de variação 
-            filtered_mensal['Variação %'] = (filtered_mensal['Faturamento'] / filtered_mensal['Faturamento Anterior'] - 1) * 100
-            for cliente in clientes_selecionados:
-                cliente_data = filtered_mensal[filtered_mensal['ESTABELECIMENTO NOME1'] == cliente]
-                for i, row in cliente_data.iterrows():
-                    if pd.notna(row['Variação %']):
-                        symbol = '▲' if row['Variação %'] > 0 else '▼'
-                        color = COLORS['success'] if row['Variação %'] > 0 else COLORS['danger']
-                        fig_mensal.add_annotation(
-                            x=row['Mês'],
-                            y=row['Faturamento'],
-                            text=f'{symbol} {abs(row["Variação %"]):.1f}%',
-                            showarrow=False,
-                            font=dict(color=color, size=12),
-                            xshift=15,
-                            yshift=10
-                        )
-
-            # Preparar dados da tabela 
-            table_df = filtered_mensal.copy()
-            table_df['Faturamento'] = table_df['Faturamento'].apply(lambda x: f'R$ {x:,.2f}')
-            table_df['Variação %'] = table_df['Variação %'].apply(lambda x: f'{x:.1f}%' if pd.notna(x) else 'N/A')
+            # Preparar dados da tabela
+            table_df = df_completo.copy()
+            table_df['Faturamento'] = table_df['Faturamento'].apply(lambda x: f'R$ {x:,.2f}' if x else 'N/A')
+            table_df['Variação %'] = table_df['Variação %'].apply(
+                lambda x: f'{x:.1f}%' if pd.notna(x) else ('Previsão' if x is None else 'N/A')
+            )
             table_data = table_df.to_dict('records')
 
         # =====================================
-        # PROCESSAMENTO DIÁRIO 
+        # PROCESSAMENTO DIÁRIO (MANTIDO)
         # =====================================
-        if not daily_data.empty:
-            filtered_diario = daily_data[
-                (daily_data['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)) &
-                (daily_data['DATA'] >= pd.to_datetime(start_date)) &
-                (daily_data['DATA'] <= pd.to_datetime(end_date))
+        if not cached_data['daily_data'].empty:
+            filtered_diario = cached_data['daily_data'][
+                (cached_data['daily_data']['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)) &
+                (cached_data['daily_data']['DATA'] >= pd.to_datetime(start_date)) &
+                (cached_data['daily_data']['DATA'] <= pd.to_datetime(end_date))
             ]
-            
+
             if not filtered_diario.empty:
                 fig_diario.add_trace(go.Bar(
                     x=filtered_diario['DATA'],
@@ -521,7 +553,6 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
                     marker_color=COLORS['primary']
                 ))
 
-        # Layout do gráfico diário 
         fig_diario.update_layout(
             xaxis=dict(
                 gridcolor=COLORS['secondary'],
@@ -541,7 +572,6 @@ def update_analysis(clientes_selecionados, start_date, end_date,n):
             showlegend=False
         )
 
-        # Colunas da tabela 
         columns = [
             {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
             {'name': 'Mês', 'id': 'Mês'},
