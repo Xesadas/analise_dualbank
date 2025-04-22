@@ -456,14 +456,17 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
                     'Previsão': True
                 })
 
-                # Plotar dados
+                meses_ativos = cliente_data_valida['Mês'].tolist() + [proximo_mes]
+                dados_plot = cliente_data[cliente_data['Mês'].isin(meses_ativos)]
+
                 fig_mensal.add_trace(go.Scatter(
-                    x=cliente_data['Mês'],
-                    y=cliente_data['Faturamento'],
+                    x=dados_plot['Mês'],
+                    y=dados_plot['Faturamento'],
                     name=cliente,
                     mode='lines+markers',
                     line=dict(width=3, color=cores[idx]),
-                    marker=dict(size=10, color=cores[idx])
+                    marker=dict(size=10, color=cores[idx]),
+                    hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
                 ))
 
                 # Plotar previsão
@@ -500,7 +503,7 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
             fig_mensal.update_layout(
                 xaxis=dict(
                     categoryorder='array',
-                    categoryarray=meses_ordem,
+                    categoryarray=meses_ativos,
                     gridcolor=COLORS['secondary'],
                     linecolor=COLORS['primary'],
                     title='Mês'
