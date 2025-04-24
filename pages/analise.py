@@ -19,7 +19,7 @@ register_page(
 )
 
 # =====================================
-# CONFIGURAÇÃO DO AMBIENTE PERSISTENTE (Igual ao primeiro arquivo)
+# CONFIGURAÇÃO DO AMBIENTE PERSISTENTE 
 # =====================================
 
 logging.basicConfig(level=logging.DEBUG)

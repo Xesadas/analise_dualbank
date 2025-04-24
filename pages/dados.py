@@ -103,7 +103,7 @@ def save_excel(modified_data):
 initialize_excel()
 
 # =============================================
-# LAYOUT (ADICIONADO BOTÃO DE EXPORTAÇÃO)
+# LAYOUT 
 # =============================================
 
 layout = html.Div([
@@ -227,7 +227,7 @@ layout = html.Div([
 ], className='main-container')
 
 # =============================================
-# CALLBACKS (ADICIONADO EXPORTAÇÃO)
+# CALLBACKS 
 # =============================================
 
 @callback(
