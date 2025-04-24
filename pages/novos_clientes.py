@@ -8,6 +8,11 @@ from pathlib import Path
 from dash.exceptions import PreventUpdate
 import plotly.graph_objects as go
 from datetime import datetime, timezone
+import os
+import openpyxl
+import logging
+from openpyxl import Workbook
+
 
 register_page(
     __name__,
@@ -29,15 +34,34 @@ COLORS = {
     'header': '#1a064d'
 }
 
-excel_path = Path('stores.xlsx')
+logging.basicConfig(level=logging.DEBUG)
+MOUNT_PATH = '/data' if os.environ.get('RENDER') else os.path.join(os.getcwd(), 'data')
+EXCEL_PATH = os.path.join(MOUNT_PATH, 'stores.xlsx')
+
+def setup_persistent_environment():
+    try:
+        os.makedirs(MOUNT_PATH, exist_ok=True)
+        
+        if not os.path.exists(EXCEL_PATH):
+            wb = Workbook()
+            wb.save(EXCEL_PATH)
+        
+        if not os.access(MOUNT_PATH, os.W_OK):
+            logging.error(f"Sem permissão de escrita em: {MOUNT_PATH}")
+            raise PermissionError("Erro de permissão no diretório persistente")
+
+    except Exception as e:
+        logging.error(f"Falha na configuração inicial: {str(e)}")
+        raise
+
+setup_persistent_environment()
 
 # =====================================
 # FUNÇÕES DE PROCESSAMENTO DE DADOS
 # =====================================
-
 def register_new_client(cpf_cnpj):
     try:
-        with pd.ExcelFile(excel_path) as excel:
+        with pd.ExcelFile(EXCEL_PATH) as excel:
             analysis_df = pd.read_excel(excel, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
             clientes_df = pd.read_excel(excel, sheet_name='Sheet1', dtype={'ESTABELECIMENTO CPF/CNPJ': str})
 
@@ -58,7 +82,7 @@ def register_new_client(cpf_cnpj):
         analysis_df = pd.concat([analysis_df, novo_df], ignore_index=True)
         
         with pd.ExcelWriter(
-            excel_path,
+            EXCEL_PATH,
             engine='openpyxl',
             mode='a',
             if_sheet_exists='replace'
@@ -74,7 +98,7 @@ def register_new_client(cpf_cnpj):
 
 def register_transaction(cpf_cnpj, valor, frequencia):
     try:
-        with pd.ExcelFile(excel_path) as excel:
+        with pd.ExcelFile(EXCEL_PATH) as excel:
             analysis_df = pd.read_excel(excel, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
             clientes_df = pd.read_excel(excel, sheet_name='Sheet1', dtype={'ESTABELECIMENTO CPF/CNPJ': str})
             transacoes_df = pd.read_excel(excel, sheet_name='Transacoes') if 'Transacoes' in excel.sheet_names else pd.DataFrame()
@@ -83,10 +107,9 @@ def register_transaction(cpf_cnpj, valor, frequencia):
         clientes_df['ESTABELECIMENTO CPF/CNPJ'] = clientes_df['ESTABELECIMENTO CPF/CNPJ'].str.replace(r'\.0$', '', regex=True)
         
         cliente = clientes_df[clientes_df['ESTABELECIMENTO CPF/CNPJ'] == cpf_cnpj].iloc[0]
-        today = today = datetime.now(timezone.utc).date()
+        today = datetime.now(timezone.utc).date()
         data_cadastro = pd.to_datetime(cliente['DATA DE CADASTRO']).date()
 
-        # Modifique a função register_transaction:
         if cpf_cnpj not in analysis_df['cpf_cnpj'].values:
             novo_registro = pd.DataFrame([{
                 'cpf_cnpj': cpf_cnpj,
@@ -101,7 +124,6 @@ def register_transaction(cpf_cnpj, valor, frequencia):
             transacoes = json.loads(analysis_df.at[row_index, 'transacoes'])
             transacoes[str(today)] = float(valor)
             
-            # Cálculo correto da média
             media = sum(transacoes.values()) / len(transacoes) if transacoes else 0
             media = round(media, 2)
             
@@ -118,7 +140,7 @@ def register_transaction(cpf_cnpj, valor, frequencia):
         transacoes_df = pd.concat([transacoes_df, pd.DataFrame([nova_transacao])])
 
         with pd.ExcelWriter(
-            excel_path,
+            EXCEL_PATH,
             engine='openpyxl',
             mode='a',
             if_sheet_exists='replace'
@@ -137,20 +159,15 @@ def load_analysis_data():
     required_columns = ['cpf_cnpj', 'data_cadastro', 'transacoes', 'frequencia', 'media_valores']
     try:
         df = pd.read_excel(
-            excel_path,
+            EXCEL_PATH,
             sheet_name='30_days_analysis',
             engine='openpyxl',
             parse_dates=['data_cadastro'],
             date_format='%d/%m/%Y'  
         )
         
-        # Converter para datetime com timezone UTC
         df['data_cadastro'] = pd.to_datetime(df['data_cadastro']).dt.tz_localize('UTC')
-        
-        # Obter data atual com timezone UTC
-        today = pd.Timestamp.now(tz='UTC').normalize()  # Normalize para remover hora/minuto
-        
-        # Calcular diferença de dias corretamente
+        today = pd.Timestamp.now(tz='UTC').normalize()
         df['dias_cadastro'] = (today - df['data_cadastro']).dt.days
         df = df[df['dias_cadastro'] <= 30]
         df = df.drop(columns=['dias_cadastro'])
@@ -165,7 +182,6 @@ def get_today():
 # =====================================
 # LAYOUT
 # =====================================
-
 layout = html.Div(
     [
         html.Div(
@@ -286,7 +302,7 @@ def toggle_remove_button(selected_client):
         return True
     try:
         # Carrega dados completos sem filtro de 30 dias
-        df = pd.read_excel(excel_path, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
+        df = pd.read_excel(EXCEL_PATH, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
         df['cpf_cnpj'] = df['cpf_cnpj'].str.replace(r'\.0$', '', regex=True)
         return str(selected_client) not in df['cpf_cnpj'].values
     except:
@@ -303,7 +319,7 @@ def handle_client_removal(n_clicks, cpf_cnpj):
     if n_clicks and cpf_cnpj:
         try:
             # Carrega dados completos
-            df = pd.read_excel(excel_path, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
+            df = pd.read_excel(EXCEL_PATH, sheet_name='30_days_analysis', dtype={'cpf_cnpj': str})
             df['cpf_cnpj'] = df['cpf_cnpj'].str.replace(r'\.0$', '', regex=True)
             
             # Remove o cliente
@@ -311,7 +327,7 @@ def handle_client_removal(n_clicks, cpf_cnpj):
             
             # Salva alterações
             with pd.ExcelWriter(
-                excel_path,
+                EXCEL_PATH,
                 engine='openpyxl',
                 mode='a',
                 if_sheet_exists='replace'
@@ -320,7 +336,7 @@ def handle_client_removal(n_clicks, cpf_cnpj):
             
             # Atualiza dropdown
             clientes_df = pd.read_excel(
-                excel_path,
+                EXCEL_PATH,
                 sheet_name='Sheet1',
                 dtype={'ESTABELECIMENTO CPF/CNPJ': str}
             )
@@ -358,7 +374,7 @@ def handle_client_removal(n_clicks, cpf_cnpj):
 def update_dropdown(search_value):
     try:
         clientes_df = pd.read_excel(
-            excel_path,
+            EXCEL_PATH,
             sheet_name='Sheet1',
             usecols=['ESTABELECIMENTO NOME1', 'ESTABELECIMENTO CPF/CNPJ'],
             dtype={'ESTABELECIMENTO CPF/CNPJ': str}
@@ -428,7 +444,7 @@ def update_transaction_chart(selected_client):
             raise PreventUpdate
             
         transacoes_df = pd.read_excel(
-            excel_path, 
+            EXCEL_PATH, 
             sheet_name='Transacoes',
             dtype={'CPF/CNPJ': str}
         ).copy()

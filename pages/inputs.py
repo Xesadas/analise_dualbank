@@ -13,7 +13,28 @@ from pathlib import Path
 
 
 logging.basicConfig(level=logging.DEBUG)
-excel_path = Path('stores.xlsx')
+MOUNT_PATH = '/data' if os.environ.get('RENDER') else os.path.join(os.getcwd(), 'data')
+EXCEL_PATH = os.path.join(MOUNT_PATH, 'stores.xlsx')
+
+# Função de configuração inicial
+def setup_persistent_environment():
+    try:
+        os.makedirs(MOUNT_PATH, exist_ok=True)
+        
+        if not os.path.exists(EXCEL_PATH):
+            wb = Workbook()
+            wb.save(EXCEL_PATH)
+        
+        if not os.access(MOUNT_PATH, os.W_OK):
+            logging.error(f"Sem permissão de escrita em: {MOUNT_PATH}")
+            raise PermissionError("Erro de permissão no diretório persistente")
+
+    except Exception as e:
+        logging.error(f"Falha na configuração inicial: {str(e)}")
+        raise
+
+# Execute a configuração ao iniciar
+setup_persistent_environment()
 
 #REFERENTE A ANÁLISE DE DADOS!!!
 dash.register_page(
@@ -450,23 +471,20 @@ layout = dbc.Container([
     Input('clientes-store', 'data')
 )
 def carregar_clientes(_):
-    file_path = 'stores.xlsx'
     try:
-        if os.path.exists(file_path):
+        if os.path.exists(EXCEL_PATH):  # Alterado aqui
             df = pd.read_excel(
-                file_path, 
-                sheet_name='Sheet1', 
+                EXCEL_PATH,  # Alterado aqui
+                sheet_name='Sheet1',
                 usecols=['ESTABELECIMENTO CPF/CNPJ'], 
                 dtype={'ESTABELECIMENTO CPF/CNPJ': str}
             )
             
-            # Filtro aprimorado
             options = [
                 {'label': cnpj, 'value': cnpj} 
                 for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].dropna().unique()
                 if isinstance(cnpj, str) and cnpj.strip() != ''
             ]
-            
             return options
         return []
     except Exception as e:
@@ -486,7 +504,7 @@ def carregar_clientes(_):
     prevent_initial_call=True
 )
 def salvar_transacao(n_clicks, cliente, data_transacao, valor):
-    file_path = 'stores.xlsx'
+    file_path = EXCEL_PATH
     
     if not all([cliente, data_transacao, valor]):
         return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
@@ -555,7 +573,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
                    cpf_cnpj, responsavel, telefone, cpf_responsavel, representante, 
                    portal, pagseguro, sub, pagseguro_email, plano_pagseguro, tipo_comercio):
     
-    file_path = 'stores.xlsx'
+    file_path = EXCEL_PATH
     
     try:
         from openpyxl import load_workbook
@@ -628,7 +646,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
     Input('clientes-store', 'data')
 )
 def carregar_clientes_faturamento(_):
-    file_path = 'stores.xlsx'
+    file_path = EXCEL_PATH
     try:
         if os.path.exists(file_path):
             df = pd.read_excel(
@@ -669,7 +687,7 @@ def salvar_faturamento(n_clicks, cliente, mes, valor):
     try:
         from openpyxl import load_workbook
 
-        file_path = 'stores.xlsx'
+        file_path = EXCEL_PATH
         wb = load_workbook(file_path)
         ws = wb['Sheet1']
         
@@ -713,7 +731,7 @@ def salvar_faturamento(n_clicks, cliente, mes, valor):
     Input('clientes-store', 'data')        # Disparado ao atualizar dados
 )
 def carregar_clientes_semanal(_):
-    file_path = 'stores.xlsx'
+    file_path = EXCEL_PATH
     
     try:
         if os.path.exists(file_path):
@@ -760,7 +778,7 @@ def salvar_semanal(n_clicks, cliente, mes, semana, valor):
     
     try:
         from openpyxl import load_workbook
-        file_path = 'stores.xlsx'
+        file_path = EXCEL_PATH
         
         # Nome da aba baseado no mês
         sheet_name = f"Faturamento {mes}"

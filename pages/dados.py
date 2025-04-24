@@ -3,6 +3,10 @@ from dash import html, dcc, Input, Output, dash_table, callback, State, register
 import pandas as pd
 import dash_bootstrap_components as dbc
 import uuid
+import os
+import logging
+import openpyxl
+from openpyxl import Workbook
 from pathlib import Path
 
 register_page(
@@ -12,55 +16,63 @@ register_page(
     name='Dados dos clientes'
 )
 
+# =============================================
+# CONFIGURAÇÃO PERSISTENTE (NOVO)
+# =============================================
+
+logging.basicConfig(level=logging.DEBUG)
+MOUNT_PATH = '/data' if os.environ.get('RENDER') else os.path.join(os.getcwd(), 'data')
+EXCEL_PATH = os.path.join(MOUNT_PATH, 'stores.xlsx')
+
+def setup_persistent_environment():
+    try:
+        os.makedirs(MOUNT_PATH, exist_ok=True)
+        
+        if not os.path.exists(EXCEL_PATH):
+            wb = Workbook()
+            wb.save(EXCEL_PATH)
+        
+        if not os.access(MOUNT_PATH, os.W_OK):
+            logging.error(f"Sem permissão de escrita em: {MOUNT_PATH}")
+            raise PermissionError("Erro de permissão no diretório persistente")
+
+    except Exception as e:
+        logging.error(f"Falha na configuração inicial: {str(e)}")
+        raise
+
+# Executar configuração inicial
+setup_persistent_environment()
 
 # =============================================
-# INICIALIZAÇÃO DO ARQUIVO EXCEL
+# INICIALIZAÇÃO DO ARQUIVO EXCEL 
 # =============================================
 
-excel_path = Path('stores.xlsx')
-excel_file = 'stores.xlsx'
-sheet_names = pd.ExcelFile(excel_file, engine='openpyxl').sheet_names
-
-if excel_path.exists():
-    dfs = pd.read_excel(excel_path, sheet_name=None, engine='openpyxl')
-    
-    for sheet in dfs:
-        df = dfs[sheet]
-        if 'temp_id' not in df.columns:
-            df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
-    
-    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='w') as writer:
-        for sheet_name, df in dfs.items():
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+sheet_names = pd.ExcelFile(EXCEL_PATH, engine='openpyxl').sheet_names
 
 def initialize_excel():
-    if Path(excel_file).exists():
-        dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+    if Path(EXCEL_PATH).exists():
+        dfs = pd.read_excel(EXCEL_PATH, sheet_name=None, engine='openpyxl')
         for sheet in dfs:
             df = dfs[sheet]
-            # Gera novos IDs para linhas com NaN ou valores inválidos
             mask = df['temp_id'].isna() | (df['temp_id'] == 'nan') | (df['temp_id'] == 'None')
             df.loc[mask, 'temp_id'] = [str(uuid.uuid4()) for _ in range(mask.sum())]
             
-            # Garante que todas as linhas tenham UUID válido
             if 'temp_id' not in df.columns:
                 df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
             
             df['temp_id'] = df['temp_id'].astype(str)
         
-        with pd.ExcelWriter(excel_file, engine='openpyxl', mode='w') as writer:
+        with pd.ExcelWriter(EXCEL_PATH, engine='openpyxl', mode='w') as writer:
             for sheet_name, df in dfs.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 def load_excel():
-    dfs = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+    dfs = pd.read_excel(EXCEL_PATH, sheet_name=None, engine='openpyxl')
     for sheet in dfs:
         df = dfs[sheet]
-        # Converter para string e substituir valores inválidos
         df['temp_id'] = df['temp_id'].astype(str)
         df['temp_id'] = df['temp_id'].replace(['nan', 'None', '<NA>'], pd.NA)
         
-        # Gerar novos IDs para valores faltantes
         nan_count = df['temp_id'].isna().sum()
         if nan_count > 0:
             new_ids = [str(uuid.uuid4()) for _ in range(nan_count)]
@@ -72,11 +84,11 @@ def load_excel():
 def save_excel(modified_data):
     try:
         with pd.ExcelWriter(
-            excel_file,
+            EXCEL_PATH,
             engine='openpyxl',
-            mode='w'  # Modo de sobrescrita completo
+            mode='w'
         ) as writer:
-            for sheet_name in sheet_names:  # Usa a lista original de sheets
+            for sheet_name in sheet_names:
                 df = modified_data.get(sheet_name, pd.DataFrame())
                 if not df.empty:
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -91,7 +103,7 @@ def save_excel(modified_data):
 initialize_excel()
 
 # =============================================
-# LAYOUT
+# LAYOUT (ADICIONADO BOTÃO DE EXPORTAÇÃO)
 # =============================================
 
 layout = html.Div([
@@ -137,6 +149,13 @@ layout = html.Div([
                     "🗑️ Apagar Linha Selecionada",
                     id='apagar-btn',
                     color="danger",
+                    className="me-1",
+                    style={'margin': '10px'}
+                ),
+                dbc.Button(  # Novo botão de exportação
+                    "⤵️ Exportar Planilha",
+                    id='export-btn',
+                    color="success",
                     className="me-1",
                     style={'margin': '10px'}
                 )
@@ -202,13 +221,22 @@ layout = html.Div([
         ], className='table-container animate__animated animate__fadeInUp'),
         
         dcc.Store(id='data-store'),
-        html.Div(id='dados-output-mensagem', style={'color': 'white', 'padding': '10px'})  # Changed ID
+        dcc.Download(id="download-dataframe-xlsx"),  # Componente de download
+        html.Div(id='dados-output-mensagem', style={'color': 'white', 'padding': '10px'})
     ], className='container-dados')
 ], className='main-container')
 
 # =============================================
-# CALLBACKS
+# CALLBACKS (ADICIONADO EXPORTAÇÃO)
 # =============================================
+
+@callback(
+    Output("download-dataframe-xlsx", "data",allow_duplicate=True),
+    Input("export-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def export_excel(n_clicks):
+    return dcc.send_file(EXCEL_PATH)
 
 @callback(
     Output('data-store', 'data'),
@@ -218,8 +246,6 @@ def update_data_store(selected_sheet):
     dfs = load_excel()
     df = dfs[selected_sheet].reset_index(drop=True)
     return df.to_dict('records')
-
-
 
 @callback(
     Output('full-data-table', 'columns'),
@@ -265,10 +291,8 @@ def delete_row(n_clicks, selected_rows, data, current_sheet):
         original_df = dfs[current_sheet].copy()
         current_df = pd.DataFrame(data)
         
-        # Obter IDs de forma segura
         selected_uuids = current_df.iloc[selected_rows]['temp_id'].astype(str).tolist()
         
-        # Filtro preciso usando query
         updated_df = original_df.query("temp_id not in @selected_uuids")
         
         new_data = {sheet: dfs[sheet] for sheet in sheet_names}

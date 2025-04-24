@@ -6,6 +6,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
+import logging
+import traceback
+import openpyxl
+from openpyxl import Workbook
 
 register_page(
     __name__,
@@ -15,11 +19,38 @@ register_page(
 )
 
 # =====================================
+# CONFIGURAÇÃO DO AMBIENTE PERSISTENTE (Igual ao primeiro arquivo)
+# =====================================
+
+logging.basicConfig(level=logging.DEBUG)
+MOUNT_PATH = '/data' if os.environ.get('RENDER') else os.path.join(os.getcwd(), 'data')
+EXCEL_PATH = os.path.join(MOUNT_PATH, 'stores.xlsx')
+
+def setup_persistent_environment():
+    try:
+        os.makedirs(MOUNT_PATH, exist_ok=True)
+        
+        if not os.path.exists(EXCEL_PATH):
+            wb = Workbook()
+            wb.save(EXCEL_PATH)
+        
+        if not os.access(MOUNT_PATH, os.W_OK):
+            logging.error(f"Sem permissão de escrita em: {MOUNT_PATH}")
+            raise PermissionError("Erro de permissão no diretório persistente")
+
+    except Exception as e:
+        logging.error(f"Falha na configuração inicial: {str(e)}")
+        raise
+
+# Executar configuração inicial
+setup_persistent_environment()
+
+# =====================================
 # CARREGAMENTO DE DADOS
 # =====================================
 try:
-    df_cadastros = pd.read_excel('stores.xlsx', sheet_name='Sheet1', engine='openpyxl')
-    df_transacoes = pd.read_excel('stores.xlsx', sheet_name='Transacoes', engine='openpyxl')
+    df_cadastros = pd.read_excel(EXCEL_PATH, sheet_name='Sheet1', engine='openpyxl')  # Modificado
+    df_transacoes = pd.read_excel(EXCEL_PATH, sheet_name='Transacoes', engine='openpyxl')  # Modificado
     df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
     
     df = pd.merge(df_transacoes, 
@@ -163,15 +194,15 @@ cached_data = {
 
 def load_data():
     global cached_data
-    file_path = 'stores.xlsx'
+    file_path = EXCEL_PATH
     
     try:
-        current_modified = os.path.getmtime(file_path)
+        current_modified = os.path.getmtime(EXCEL_PATH)
         
         if cached_data['last_modified'] != current_modified:
             # Carrega dados
-            df_cadastros = pd.read_excel(file_path, sheet_name='Sheet1', engine='openpyxl')
-            df_transacoes = pd.read_excel(file_path, sheet_name='Transacoes', engine='openpyxl')
+            df_cadastros = pd.read_excel(EXCEL_PATH, sheet_name='Sheet1', engine='openpyxl')  # Modificado
+            df_transacoes = pd.read_excel(EXCEL_PATH, sheet_name='Transacoes', engine='openpyxl')  # Modificado
             df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
             
             df = pd.merge(
@@ -207,7 +238,7 @@ def load_data():
             }).reset_index() if not df.empty else pd.DataFrame()
 
             weekly_dfs = []
-            xls = pd.ExcelFile(file_path)
+            xls = pd.ExcelFile(EXCEL_PATH)
             for sheet_name in xls.sheet_names:
                 if sheet_name.startswith('Faturamento '):
                     df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
@@ -267,6 +298,7 @@ def determinar_meses_relevantes(df):
 # =====================================
 # LAYOUT COMPLETO
 # =====================================
+
 layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '100vh'}, children=[
     html.Div(className='container', style={'padding': '30px', 'maxWidth': '1200px', 'margin': '0 auto'}, children=[
         
