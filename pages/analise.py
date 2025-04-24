@@ -127,7 +127,7 @@ COLORS = {
     'secondary': '#333333',  
     'success': '#2ecc71',
     'danger': '#e74c3c',
-    'highlight': '#f1c40f',
+    'highlight':'#161691',
     'card': '#1a1a1a',  
     'plot_bg': '#1a1a1a',
     'header': '#1a064d'
@@ -157,6 +157,7 @@ cached_data = {
     'df': pd.DataFrame(),
     'df_long': pd.DataFrame(),
     'daily_data': pd.DataFrame(),
+    'weekly_data': pd.DataFrame(),
     'last_modified': None
 }
 
@@ -204,6 +205,23 @@ def load_data():
                 'VALOR (R$)': 'Faturamento Diário',
                 'CPF/CNPJ': 'Transações'
             }).reset_index() if not df.empty else pd.DataFrame()
+
+            weekly_dfs = []
+            xls = pd.ExcelFile(file_path)
+            for sheet_name in xls.sheet_names:
+                if sheet_name.startswith('Faturamento '):
+                    df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
+                    df_sheet['MÊS'] = sheet_name.replace('Faturamento ', '')
+                    weekly_dfs.append(df_sheet)
+            
+            df_semanas = pd.concat(weekly_dfs, ignore_index=True) if weekly_dfs else pd.DataFrame()
+
+            if not df_semanas.empty:
+                df_semanas['DATA REGISTRO'] = pd.to_datetime(
+                    df_semanas['DATA REGISTRO'], 
+                    dayfirst=True,  # Adicionei dayfirst aqui
+                    format='%d/%m/%Y %H:%M'  # Especificar formato explícito
+                )
             
             # Atualiza cache
             cached_data.update({
@@ -212,7 +230,8 @@ def load_data():
                 'df': df,
                 'df_long': df_long,
                 'daily_data': daily_data,
-                'last_modified': current_modified
+                'last_modified': current_modified,
+                'weekly_data': df_semanas
             })
             
     except Exception as e:
@@ -310,6 +329,19 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
                     config={'displayModeBar': False}
                 )
             ]),
+        html.Div(className='graph-card', style={
+            'backgroundColor': COLORS['card'],
+            'padding': '20px',
+            'borderRadius': '15px',
+            'marginBottom': '20px'
+        }, children=[
+            dcc.Graph(
+                id='grafico-semanal',
+                style={'height': '400px'},
+                config={'displayModeBar': False}
+            )
+        ]),
+            ]),
             
             html.Div(className='graph-card', style={
                 'backgroundColor': COLORS['card'],
@@ -369,7 +401,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
             )
         ])
     ])
-])
+#])
 
 #=====================================
 # CALLBACKS 
@@ -378,6 +410,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 @callback(
     Output('grafico-mensal', 'figure'),
     Output('grafico-diario', 'figure'),
+    Output('grafico-semanal', 'figure'), 
     Output('tabela-variacao', 'data'),
     Output('tabela-variacao', 'columns'),
     Input('cliente-dropdown', 'value'),
@@ -388,17 +421,18 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 def update_analysis(clientes_selecionados, start_date, end_date, n):
     fig_mensal = go.Figure()
     fig_diario = go.Figure()
+    fig_semanal = go.Figure()
     table_data = []
     columns = []
 
     if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
-        return fig_mensal, fig_diario, [], []
+        return fig_mensal, fig_diario,fig_semanal, [], []
 
     try:
         load_data()
         
         # =====================================
-        # NOVA LÓGICA DE MESES
+        # LÓGICA DE MESES
         # =====================================
         if not cached_data['df_long'].empty:
             filtered_mensal = cached_data['df_long'].copy()
@@ -578,6 +612,49 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
             showlegend=False
         )
 
+        if not cached_data['df'].empty:
+            # Carregar dados semanais das abas correspondentes
+            weekly_dfs = []
+            xls = pd.ExcelFile('stores.xlsx')
+            for sheet_name in xls.sheet_names:
+                if sheet_name.startswith('Faturamento '):
+                    df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
+                    df_sheet['MÊS'] = sheet_name.replace('Faturamento ', '')
+                    weekly_dfs.append(df_sheet)
+            
+            if weekly_dfs:
+                df_semanas = pd.concat(weekly_dfs, ignore_index=True)
+                df_semanas = df_semanas.merge(
+                    cached_data['df_cadastros'][['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
+                    left_on='CPF/CNPJ',
+                    right_on='ESTABELECIMENTO CPF/CNPJ',
+                    how='left'
+                )
+                
+                filtered_semanas = df_semanas[
+                    (df_semanas['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)) &
+                    (pd.to_datetime(df_semanas['DATA REGISTRO']) >= pd.to_datetime(start_date)) &
+                    (pd.to_datetime(df_semanas['DATA REGISTRO']) <= pd.to_datetime(end_date))
+                ]
+
+                if not filtered_semanas.empty:
+                    fig_semanal.add_trace(go.Bar(
+                        x=filtered_semanas['MÊS'] + ' - Sem ' + filtered_semanas['SEMANA'].astype(str),
+                        y=filtered_semanas['VALOR (R$)'],
+                        marker_color=COLORS['highlight'],
+                        opacity=0.8
+                    ))
+
+                    fig_semanal.update_layout(
+                        title='Faturamento Semanal',
+                        xaxis_title='Período',
+                        yaxis_title='Valor (R$)',
+                        plot_bgcolor=COLORS['plot_bg'],
+                        paper_bgcolor=COLORS['card'],
+                        font=dict(color=COLORS['text']),
+                        margin=dict(l=50, r=50, t=80, b=50)
+                    )
+
         columns = [
             {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
             {'name': 'Mês', 'id': 'Mês'},
@@ -588,4 +665,4 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
     except Exception as e:
         print(f"Erro na análise: {str(e)}")
 
-    return fig_mensal, fig_diario, table_data, columns
+    return fig_mensal, fig_diario, fig_semanal, table_data, columns

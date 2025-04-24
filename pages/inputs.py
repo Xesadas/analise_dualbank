@@ -344,6 +344,73 @@ layout = dbc.Container([
         ], style=transaction_style, className="shadow-sm")
         
     ], className="py-5"),
+        
+        dbc.Card([
+            dbc.CardBody([
+                html.H5("Registro de Faturamento Semanal", className="form-section-title"),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Selecionar Cliente"),
+                        dcc.Dropdown(
+                            id='cliente-semanal',
+                            options=[],
+                            placeholder="CPF/CNPJ do Cliente*",
+                            className='mb-3'
+                        )
+                    ], md=5),
+                    
+                    dbc.Col([
+                        dbc.Label("Mês"),
+                        dcc.Dropdown(
+                            id='mes-semanal',
+                            options=[
+                                {'label': 'Janeiro', 'value': 'Janeiro'},
+                                {'label': 'Fevereiro', 'value': 'Fevereiro'},
+                                {'label': 'Março', 'value': 'Marco'},
+                                {'label': 'Abril', 'value': 'Abril'},
+                                {'label': 'Maio', 'value': 'Maio'},
+                                {'label': 'Junho', 'value': 'Junho'},
+                                {'label': 'Julho', 'value': 'Julho'},
+                                {'label': 'Agosto', 'value': 'Agosto'},
+                                {'label': 'Setembro', 'value': 'Setembro'},
+                                {'label': 'Outubro', 'value': 'Outubro'},
+                                {'label': 'Novembro', 'value': 'Novembro'},
+                                {'label': 'Dezembro', 'value': 'Dezembro'},
+                            ],
+                            placeholder="Selecione o Mês*",
+                            className='mb-3'
+                        )
+                    ], md=3),
+                    
+                    dbc.Col([
+                        dbc.Label("Semana"),
+                        dcc.Dropdown(
+                            id='semana',
+                            options=[{'label': f'Semana {i}', 'value': i} for i in range(1, 6)],
+                            placeholder="Nº da Semana*",
+                            className='mb-3'
+                        )
+                    ], md=2),
+                    
+                    dbc.Col([
+                        dbc.Label("Valor (R$)"),
+                        dbc.Input(
+                            id='valor-semanal',
+                            type='number',
+                            step=0.01,
+                            placeholder="0.00",
+                            className='mb-3'
+                        )
+                    ], md=2)
+                ]),
+                dbc.Button(
+                    "Salvar Semanal",
+                    id='salvar-semanal',
+                    color="info",
+                    className='mt-2'
+                )
+            ])
+        ], style=transaction_style, className="shadow-sm mb-4"),
     
     # Componentes de Armazenamento e Alertas
     dcc.Store(id='clientes-store', storage_type='memory'),
@@ -365,7 +432,14 @@ layout = dbc.Container([
         is_open=False, 
         duration=4000,
         className="animate__animated animate__fadeInRight"
+    ),
+    dbc.Alert(
+    id='alert-semanal', 
+    is_open=False, 
+    duration=4000,
+    className="animate__animated animate__fadeInRight"
     )
+    
 ], fluid=True)
 # =============================================
 # CALLBACKS
@@ -629,6 +703,102 @@ def salvar_faturamento(n_clicks, cliente, mes, valor):
         wb.close()
         
         return True, f"Faturamento de R${valor:.2f} salvo para {mes}! ✅", "success"
+    
+    except Exception as e:
+        logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
+        return True, f"Erro ao salvar: {str(e)} ❌", "danger"
+    
+@callback(
+    Output('cliente-semanal', 'options'),  # ID do dropdown semanal
+    Input('clientes-store', 'data')        # Disparado ao atualizar dados
+)
+def carregar_clientes_semanal(_):
+    file_path = 'stores.xlsx'
+    
+    try:
+        if os.path.exists(file_path):
+            # Carrega apenas a coluna de CPF/CNPJ
+            df = pd.read_excel(
+                file_path,
+                sheet_name='Sheet1',
+                usecols=['ESTABELECIMENTO CPF/CNPJ'],
+                dtype={'ESTABELECIMENTO CPF/CNPJ': str}
+            )
+            
+            # Filtra e formata os valores válidos
+            options = [
+                {'label': cnpj, 'value': cnpj} 
+                for cnpj in df['ESTABELECIMENTO CPF/CNPJ'].dropna().unique()
+                if isinstance(cnpj, str) and cnpj.strip() != ''
+            ]
+            
+            return options
+        
+        return []  # Retorna vazio se arquivo não existir
+    
+    except Exception as e:
+        logging.error(f"Erro ao carregar clientes (semanal): {str(e)}")
+        return []
+
+    
+@callback(
+    Output('alert-semanal', 'is_open'),
+    Output('alert-semanal', 'children'),
+    Output('alert-semanal', 'color'),
+    Input('salvar-semanal', 'n_clicks'),
+    [
+        State('cliente-semanal', 'value'),
+        State('mes-semanal', 'value'),
+        State('semana', 'value'),
+        State('valor-semanal', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def salvar_semanal(n_clicks, cliente, mes, semana, valor):
+    if not all([cliente, mes, semana, valor is not None]):
+        return True, "Preencha todos os campos obrigatórios! ⚠️", "warning"
+    
+    try:
+        from openpyxl import load_workbook
+        file_path = 'stores.xlsx'
+        
+        # Nome da aba baseado no mês
+        sheet_name = f"Faturamento {mes}"
+        
+        # Carregar ou criar arquivo
+        if os.path.exists(file_path):
+            wb = load_workbook(file_path)
+            if sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+            else:
+                ws = wb.create_sheet(sheet_name)
+                ws.append(['CPF/CNPJ', 'MÊS', 'SEMANA', 'VALOR (R$)', 'DATA REGISTRO'])
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = sheet_name
+            ws.append(['CPF/CNPJ', 'MÊS', 'SEMANA', 'VALOR (R$)', 'DATA REGISTRO'])
+        
+        # Verificar duplicatas
+        for row in ws.iter_rows(min_row=2):
+            if (str(row[0].value) == cliente and 
+                row[2].value == semana and 
+                row[1].value == mes):
+                wb.close()
+                return True, "Já existe registro para esta semana! ⚠️", "warning"
+        
+        # Adicionar novo registro
+        ws.append([
+            cliente,
+            mes,
+            semana,
+            float(valor),
+            datetime.now().strftime('%d/%m/%Y %H:%M')
+        ])
+        
+        wb.save(file_path)
+        wb.close()
+        return True, f"Semana {semana} de {mes} salva com R${valor:.2f}! ✅", "success"
     
     except Exception as e:
         logging.error(f"Erro: {str(e)}\n{traceback.format_exc()}")
