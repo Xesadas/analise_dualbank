@@ -570,8 +570,8 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
     prevent_initial_call=True
 )
 def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabelecimento, 
-                   cpf_cnpj, responsavel, telefone, cpf_responsavel, representante, 
-                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro, tipo_comercio):
+                   cpf_cnpj,tipo_comercio, responsavel, telefone, cpf_responsavel, representante, 
+                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro):
     
     file_path = EXCEL_PATH
     
