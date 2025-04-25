@@ -54,14 +54,19 @@ def initialize_excel():
         dfs = pd.read_excel(EXCEL_PATH, sheet_name=None, engine='openpyxl')
         for sheet in dfs:
             df = dfs[sheet]
-            mask = df['temp_id'].isna() | (df['temp_id'] == 'nan') | (df['temp_id'] == 'None')
-            df.loc[mask, 'temp_id'] = [str(uuid.uuid4()) for _ in range(mask.sum())]
             
+            # Criar coluna temp_id se não existir
             if 'temp_id' not in df.columns:
                 df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
             
+            # Corrigir valores inválidos
+            mask = df['temp_id'].isna() | df['temp_id'].isin(['nan', 'None', ''])
+            df.loc[mask, 'temp_id'] = [str(uuid.uuid4()) for _ in range(mask.sum())]
+            
+            # Garantir tipo string
             df['temp_id'] = df['temp_id'].astype(str)
         
+        # Salvar de volta no Excel
         with pd.ExcelWriter(EXCEL_PATH, engine='openpyxl', mode='w') as writer:
             for sheet_name, df in dfs.items():
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -70,13 +75,19 @@ def load_excel():
     dfs = pd.read_excel(EXCEL_PATH, sheet_name=None, engine='openpyxl')
     for sheet in dfs:
         df = dfs[sheet]
-        df['temp_id'] = df['temp_id'].astype(str)
-        df['temp_id'] = df['temp_id'].replace(['nan', 'None', '<NA>'], pd.NA)
         
+        # Criar coluna temp_id se não existir
+        if 'temp_id' not in df.columns:
+            df['temp_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+        
+        # Processar valores
+        df['temp_id'] = df['temp_id'].astype(str)
+        df['temp_id'] = df['temp_id'].replace(['nan', 'None', '<NA>', ''], pd.NA)
+        
+        # Gerar novos IDs para valores inválidos
         nan_count = df['temp_id'].isna().sum()
         if nan_count > 0:
-            new_ids = [str(uuid.uuid4()) for _ in range(nan_count)]
-            df.loc[df['temp_id'].isna(), 'temp_id'] = new_ids
+            df.loc[df['temp_id'].isna(), 'temp_id'] = [str(uuid.uuid4()) for _ in range(nan_count)]
         
         df['temp_id'] = df['temp_id'].astype(str)
     return dfs

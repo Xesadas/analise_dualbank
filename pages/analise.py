@@ -178,9 +178,9 @@ if not options:
     options = [{'label': 'Sem dados disponíveis', 'value': 'NO_DATA'}]
 
 
-#=====================================
+# =====================================
 # PRÉ CARREGAMENTO DE DADOS 
-#=====================================
+# =====================================
 
 cached_data = {
     'df_cadastros': pd.DataFrame(),
@@ -191,7 +191,6 @@ cached_data = {
     'weekly_data': pd.DataFrame(),
     'last_modified': None
 }
-
 def load_data():
     global cached_data
     file_path = EXCEL_PATH
@@ -200,11 +199,12 @@ def load_data():
         current_modified = os.path.getmtime(EXCEL_PATH)
         
         if cached_data['last_modified'] != current_modified:
-            # Carrega dados
-            df_cadastros = pd.read_excel(EXCEL_PATH, sheet_name='Sheet1', engine='openpyxl')  # Modificado
-            df_transacoes = pd.read_excel(EXCEL_PATH, sheet_name='Transacoes', engine='openpyxl')  # Modificado
+            # Carrega dados principais
+            df_cadastros = pd.read_excel(EXCEL_PATH, sheet_name='Sheet1', engine='openpyxl')
+            df_transacoes = pd.read_excel(EXCEL_PATH, sheet_name='Transacoes', engine='openpyxl')
             df_transacoes['DATA'] = pd.to_datetime(df_transacoes['DATA'], dayfirst=True)
             
+            # Merge com dados de cadastro
             df = pd.merge(
                 df_transacoes, 
                 df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
@@ -212,63 +212,60 @@ def load_data():
                 right_on='ESTABELECIMENTO CPF/CNPJ',
                 how='left'
             )
-            
-            # Prepara df_long CORREÇÃO AQUI
-            df_long = df_cadastros.melt(
-                id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
-                value_vars=meses.keys(),  # Usa todas as colunas de meses
-                var_name='Mês',
-                value_name='Faturamento'
-            ) if not df_cadastros.empty else pd.DataFrame()
-            
-            df_long['Mês'] = df_long['Mês'].map(meses)
-            df_long['Mês'] = pd.Categorical(
-                df_long['Mês'], 
-                categories=meses_ordem,  # Usa a lista completa de meses
-                ordered=True
-            )
-            
-            # Prepara dados diários
-            daily_data = df.groupby(['ESTABELECIMENTO NOME1', pd.Grouper(key='DATA', freq='D')]).agg({
-                'VALOR (R$)': 'sum',
-                'CPF/CNPJ': 'count'
-            }).rename(columns={
-                'VALOR (R$)': 'Faturamento Diário',
-                'CPF/CNPJ': 'Transações'
-            }).reset_index() if not df.empty else pd.DataFrame()
 
-            weekly_dfs = []
-            xls = pd.ExcelFile(EXCEL_PATH)
-            for sheet_name in xls.sheet_names:
-                if sheet_name.startswith('Faturamento '):
-                    df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
-                    df_sheet['MÊS'] = sheet_name.replace('Faturamento ', '')
-                    weekly_dfs.append(df_sheet)
-            
-            df_semanas = pd.concat(weekly_dfs, ignore_index=True) if weekly_dfs else pd.DataFrame()
-
-            if not df_semanas.empty:
-                df_semanas['DATA REGISTRO'] = pd.to_datetime(
-                    df_semanas['DATA REGISTRO'], 
-                    dayfirst=True,  # Adicionei dayfirst aqui
-                    format='%d/%m/%Y %H:%M'  # Especificar formato explícito
+            # Recriar df_long com dados atualizados
+            if not df_cadastros.empty:
+                df_long = df_cadastros.melt(
+                    id_vars=['ESTABELECIMENTO NOME1', 'STATUS'],
+                    value_vars=meses.keys(),
+                    var_name='Mês',
+                    value_name='Faturamento'
                 )
-            
-            # Atualiza cache
+                df_long['Mês'] = df_long['Mês'].map(meses)
+                df_long['Mês'] = pd.Categorical(df_long['Mês'], categories=meses_ordem, ordered=True)
+            else:
+                df_long = pd.DataFrame()
+
+            # Carregar dados semanais (corrigir mês 'Marco')
+            weekly_dfs = []
+            try:
+                xls = pd.ExcelFile(EXCEL_PATH)
+                for sheet_name in xls.sheet_names:
+                    if sheet_name.startswith('Faturamento '):
+                        df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
+                        df_sheet.rename(columns={'CPF/CNPJ': 'ESTABELECIMENTO CPF/CNPJ'}, inplace=True)
+                        
+                        # Converter nome do mês (ex: 'Marco' -> 'Março')
+                        mes = sheet_name.replace('Faturamento ', '')
+                        mes = 'Março' if mes == 'Marco' else mes  # Correção crítica
+                        df_sheet['MÊS'] = mes
+                        
+                        # Mesclar com nomes
+                        df_sheet = pd.merge(
+                            df_sheet,
+                            df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
+                            on='ESTABELECIMENTO CPF/CNPJ',
+                            how='left'
+                        )
+                        weekly_dfs.append(df_sheet)
+                
+                df_semanas = pd.concat(weekly_dfs, ignore_index=True) if weekly_dfs else pd.DataFrame()
+            except Exception as e:
+                print(f"Erro ao carregar semanas: {str(e)}")
+                df_semanas = pd.DataFrame()
+
+            # Atualizar cache com todos os dados
             cached_data.update({
                 'df_cadastros': df_cadastros,
                 'df_transacoes': df_transacoes,
                 'df': df,
-                'df_long': df_long,
-                'daily_data': daily_data,
-                'last_modified': current_modified,
-                'weekly_data': df_semanas
+                'df_long': df_long,  # Agora incluído
+                'weekly_data': df_semanas,
+                'last_modified': current_modified
             })
-            
+
     except Exception as e:
-        print(f"Erro ao carregar dados: {str(e)}")
-    
-    return cached_data
+        logging.error(f"Erro geral: {str(e)}")
 
 def determinar_meses_relevantes(df):
     # Encontrar o último mês com dados
@@ -438,7 +435,6 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 #=====================================
 # CALLBACKS 
 #=====================================
-
 @callback(
     Output('grafico-mensal', 'figure'),
     Output('grafico-diario', 'figure'),
@@ -458,7 +454,7 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
     columns = []
 
     if not clientes_selecionados or 'NO_DATA' in clientes_selecionados:
-        return fig_mensal, fig_diario,fig_semanal, [], []
+        return fig_mensal, fig_diario, fig_semanal, [], []
 
     try:
         load_data()
@@ -561,9 +557,39 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
                                 yshift=10
                             )
 
-            # Combinar dados para tabela
             df_previsao = pd.DataFrame(previsoes)
             df_completo = pd.concat([filtered_mensal, df_previsao], ignore_index=True)
+
+            if not df_completo.empty:
+                # Formatar valores
+                table_df = df_completo.copy()
+                table_df['Faturamento'] = table_df['Faturamento'].apply(lambda x: f'R$ {x:,.2f}' if x else 'N/A')
+                table_df['Variação %'] = table_df['Variação %'].apply(
+                    lambda x: f'{x:.1f}% ↑' if pd.notna(x) and x > 0 else 
+                            f'{x:.1f}% ↓' if pd.notna(x) and x < 0 else 
+                            'Previsão' if x is None else 'N/A'
+                )
+
+                # Filtrar e renomear colunas
+                table_df = table_df[['ESTABELECIMENTO NOME1', 'Mês', 'Faturamento', 'Variação %']]
+                table_df = table_df.rename(columns={
+                    'ESTABELECIMENTO NOME1': 'Cliente',
+                    'Mês': 'Mês',
+                    'Faturamento': 'Faturamento (R$)',
+                    'Variação %': 'Variação %'
+                })
+
+                # Converter para dicionário e definir colunas
+                table_data = table_df.to_dict('records')
+                columns = [
+                    {"name": "Cliente", "id": "Cliente"},
+                    {"name": "Mês", "id": "Mês"},
+                    {"name": "Faturamento (R$)", "id": "Faturamento (R$)"},
+                    {"name": "Variação %", "id": "Variação %"}
+                ]
+            else:
+                table_data = []
+                columns = []
             
             # Atualizar layout do gráfico
             fig_mensal.update_layout(
@@ -644,57 +670,82 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
             showlegend=False
         )
 
-        if not cached_data['df'].empty:
-            # Carregar dados semanais das abas correspondentes
-            weekly_dfs = []
-            xls = pd.ExcelFile('stores.xlsx')
-            for sheet_name in xls.sheet_names:
-                if sheet_name.startswith('Faturamento '):
-                    df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
-                    df_sheet['MÊS'] = sheet_name.replace('Faturamento ', '')
-                    weekly_dfs.append(df_sheet)
-            
-            if weekly_dfs:
-                df_semanas = pd.concat(weekly_dfs, ignore_index=True)
-                df_semanas = df_semanas.merge(
-                    cached_data['df_cadastros'][['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
-                    left_on='CPF/CNPJ',
-                    right_on='ESTABELECIMENTO CPF/CNPJ',
-                    how='left'
-                )
-                
-                filtered_semanas = df_semanas[
-                    (df_semanas['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)) &
-                    (pd.to_datetime(df_semanas['DATA REGISTRO']) >= pd.to_datetime(start_date)) &
-                    (pd.to_datetime(df_semanas['DATA REGISTRO']) <= pd.to_datetime(end_date))
-                ]
+        # =====================================
+        # PROCESSAMENTO SEMANAL (ATUALIZADO)
+        # =====================================
+        if not cached_data['weekly_data'].empty:
+            try:
+                # Obter CPFs/CNPJs dos clientes selecionados
+                clientes_cpfcnpj = df_cadastros[
+                    df_cadastros['ESTABELECIMENTO NOME1'].isin(clientes_selecionados)
+                ]['ESTABELECIMENTO CPF/CNPJ'].unique()
+
+                # Filtrar dados
+                filtered_semanas = cached_data['weekly_data'][
+                    (cached_data['weekly_data']['ESTABELECIMENTO CPF/CNPJ'].isin(clientes_cpfcnpj)) &
+                    (cached_data['weekly_data']['MÊS'].notna())
+                ].copy()
+
+                # Processar se houver dados
+                # No trecho de processamento semanal (dentro do callback):
 
                 if not filtered_semanas.empty:
-                    fig_semanal.add_trace(go.Bar(
-                        x=filtered_semanas['MÊS'] + ' - Sem ' + filtered_semanas['SEMANA'].astype(str),
-                        y=filtered_semanas['VALOR (R$)'],
-                        marker_color=COLORS['highlight'],
-                        opacity=0.8
-                    ))
+                    # Converter SEMANA para numérico e criar label combinado
+                    filtered_semanas['SEMANA'] = pd.to_numeric(filtered_semanas['SEMANA'], errors='coerce').fillna(0).astype(int)
+                    filtered_semanas['MÊS_SEMANA'] = filtered_semanas['MÊS'] + ' - Semana ' + filtered_semanas['SEMANA'].astype(str)
+                    
+                    # Agrupar por mês e semana
+                    df_agrupado = filtered_semanas.groupby(
+                        ['MÊS_SEMANA', 'ESTABELECIMENTO NOME1', 'MÊS', 'SEMANA'], 
+                        observed=True
+                    ).agg({
+                        'VALOR (R$)': 'sum'
+                    }).reset_index()
 
+                    # Ordenação correta
+                    meses_orden = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+                    df_agrupado['MÊS'] = pd.Categorical(
+                        df_agrupado['MÊS'], 
+                        categories=meses_orden, 
+                        ordered=True
+                    )
+                    df_agrupado = df_agrupado.sort_values(['MÊS', 'SEMANA'])
+
+                    # Criar gráfico com todas as semanas
+                    fig_semanal = px.bar(
+                        df_agrupado,
+                        x='MÊS_SEMANA',
+                        y='VALOR (R$)',
+                        color='ESTABELECIMENTO NOME1',
+                        barmode='group',
+                        labels={'VALOR (R$)': 'Faturamento Semanal (R$)'},
+                        category_orders={'MÊS_SEMANA': df_agrupado['MÊS_SEMANA'].unique()}
+                    )
+                    
+                    # Ajustar layout
                     fig_semanal.update_layout(
-                        title='Faturamento Semanal',
-                        xaxis_title='Período',
-                        yaxis_title='Valor (R$)',
+                        xaxis_title='Mês e Semana',
+                        yaxis_title='Faturamento (R$)',
                         plot_bgcolor=COLORS['plot_bg'],
                         paper_bgcolor=COLORS['card'],
                         font=dict(color=COLORS['text']),
-                        margin=dict(l=50, r=50, t=80, b=50)
+                        margin=dict(l=50, r=50, t=80, b=50),
+                        xaxis_tickangle=-45,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1
+                        )
                     )
 
-        columns = [
-            {'name': 'Cliente', 'id': 'ESTABELECIMENTO NOME1'},
-            {'name': 'Mês', 'id': 'Mês'},
-            {'name': 'Faturamento', 'id': 'Faturamento'},
-            {'name': 'Variação %', 'id': 'Variação %'}
-        ]
+            except Exception as e:
+                print(f"Erro processamento semanal: {str(e)}")
 
     except Exception as e:
-        print(f"Erro na análise: {str(e)}")
+        print(f"Erro geral na análise: {str(e)}")
+        return fig_mensal, fig_diario, fig_semanal, [], []
 
     return fig_mensal, fig_diario, fig_semanal, table_data, columns
