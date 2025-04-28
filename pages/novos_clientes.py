@@ -566,3 +566,5 @@ def handle_new_client_registration(n_clicks, cpf_cnpj, frequencia):
         except Exception as e:
             return dash.no_update, html.Span(f"❌ Erro: {str(e)}", style={'color': COLORS['danger']}), False
     return dash.no_update, dash.no_update, False
+
+#teste?
