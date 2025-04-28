@@ -226,29 +226,35 @@ def load_data():
             else:
                 df_long = pd.DataFrame()
 
-            # Carregar dados semanais (corrigir mês 'Marco')
             weekly_dfs = []
             try:
                 xls = pd.ExcelFile(EXCEL_PATH)
                 for sheet_name in xls.sheet_names:
                     if sheet_name.startswith('Faturamento '):
                         df_sheet = pd.read_excel(xls, sheet_name=sheet_name)
-                        df_sheet.rename(columns={'CPF/CNPJ': 'ESTABELECIMENTO CPF/CNPJ'}, inplace=True)
                         
-                        # Converter nome do mês (ex: 'Marco' -> 'Março')
+                        # Corrigir nome da coluna CPF/CNPJ
+                        if 'CPF/CNPJ' in df_sheet.columns:
+                            df_sheet.rename(columns={'CPF/CNPJ': 'ESTABELECIMENTO CPF/CNPJ'}, inplace=True)
+                        
+                        # Converter nome do mês
                         mes = sheet_name.replace('Faturamento ', '')
-                        mes = 'Março' if mes == 'Marco' else mes  # Correção crítica
-                        df_sheet['MÊS'] = mes
+                        mes = 'Março' if mes == 'Marco' else mes
                         
-                        # Mesclar com nomes
+                        # Mesclar com dados ATUALIZADOS de cadastro
                         df_sheet = pd.merge(
                             df_sheet,
                             df_cadastros[['ESTABELECIMENTO CPF/CNPJ', 'ESTABELECIMENTO NOME1']],
                             on='ESTABELECIMENTO CPF/CNPJ',
-                            how='left'
+                            how='left'  # Alterado para left join
                         )
+                        
+                        # Adicionar metadados
+                        df_sheet['MÊS'] = mes
+                        df_sheet['SEMANA'] = df_sheet.get('SEMANA', 0)
+                        
                         weekly_dfs.append(df_sheet)
-                
+
                 df_semanas = pd.concat(weekly_dfs, ignore_index=True) if weekly_dfs else pd.DataFrame()
             except Exception as e:
                 print(f"Erro ao carregar semanas: {str(e)}")
@@ -754,6 +760,15 @@ def update_analysis(clientes_selecionados, start_date, end_date, n):
                             x=1
                         )
                     )
+                    # Verificar se o gráfico semanal permanece vazio
+                    if len(fig_semanal.data) == 0:
+                        fig_semanal.add_annotation(
+                            text="Nenhum dado semanal disponível para os clientes selecionados",
+                            xref="paper", yref="paper",
+                            x=0.5, y=0.5, showarrow=False,
+                            font=dict(size=16, color=COLORS['secondary'])
+                        )
+            
 
             except Exception as e:
                 print(f"Erro processamento semanal: {str(e)}")
