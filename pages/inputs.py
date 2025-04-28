@@ -52,21 +52,6 @@ transaction_style = {
     'marginTop': '30px'
 }
 
-COLUNAS_SHEET1 = [
-    'DATA DE CADASTRO', 'DATA DE APROVAÇÃO', 'ESTABELECIMENTO NOME1', 
-    'ESTABELECIMENTO CPF/CNPJ', 'TIPO DE COMÉRCIO', 
-    'RESPONSÁVEL DO ESTABELECIMENTO', 'RESPONSÁVEL E-MAIL', 
-    'RESPONSÁVEL CPF/CNPJ', 'RESPONSÁVEL TELEFONE', 'STATUS', 
-    'REPRESENTANTE NOME1', 'PORTAL', 'PAGSEGURO', 'PAGSEGURO EMAIL', 
-    'SUB', 'BANKING', 'PLANO PAG', 'Unnamed: 17', 'P S', 
-    'Faturamento Dezembro', 'Faturamento Janeiro', 
-    'Faturamento Fevereiro', 'Faturamento Marco', 'Faturamento Abril', 
-    'Faturamento Maio', 'Faturamento Junho', 'Faturamento Julho', 
-    'Faturamento Agosto', 'Faturamento Setembro', 'Faturamento Outubro', 
-    'Faturamento Novembro', 'Faturamento Dezembro.1', 
-    'Média de Faturamento', 'temp_id'
-]
-
 # =============================================
 # LAYOUT
 # =============================================
@@ -117,17 +102,18 @@ layout = dbc.Container([
                                 className='mb-4'
                             ), md=12
                         ),
+                      
+                    ]),
+                ]),
+                    dbc.Row([
                         dbc.Col(
                             dbc.Input(
                                 id='cpf-cnpj',
                                 placeholder="CPF/CNPJ*",
                                 className='mb-4'
-                            ), md=12
-                        )
-                    ]),
-                ]),
-                  
-                     dbc.Col([
+                            ), md=6
+                        ),
+                        dbc.Col([
                             dbc.Label("Tipo de Comércio*", className="mb-2"),
                             dcc.Dropdown(
                                 id='tipo-comercio',
@@ -374,100 +360,102 @@ layout = dbc.Container([
         
     ], className="py-5"),
         
-dbc.Card([
-    dbc.CardBody([
-        html.H5("Registro de Faturamento Semanal", className="form-section-title"),
-        dbc.Row([
-            dbc.Col([
-                dbc.Label("Selecionar Cliente"),
-                dcc.Dropdown(
-                    id='cliente-semanal',
-                    options=[],
-                    placeholder="CPF/CNPJ do Cliente*",
-                    className='mb-3'
+        dbc.Card([
+            dbc.CardBody([
+                html.H5("Registro de Faturamento Semanal", className="form-section-title"),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Label("Selecionar Cliente"),
+                        dcc.Dropdown(
+                            id='cliente-semanal',
+                            options=[],
+                            placeholder="CPF/CNPJ do Cliente*",
+                            className='mb-3'
+                        )
+                    ], md=5),
+                    
+                    dbc.Col([
+                        dbc.Label("Mês"),
+                        dcc.Dropdown(
+                            id='mes-semanal',
+                            options=[
+                                {'label': 'Janeiro', 'value': 'Janeiro'},
+                                {'label': 'Fevereiro', 'value': 'Fevereiro'},
+                                {'label': 'Março', 'value': 'Marco'},
+                                {'label': 'Abril', 'value': 'Abril'},
+                                {'label': 'Maio', 'value': 'Maio'},
+                                {'label': 'Junho', 'value': 'Junho'},
+                                {'label': 'Julho', 'value': 'Julho'},
+                                {'label': 'Agosto', 'value': 'Agosto'},
+                                {'label': 'Setembro', 'value': 'Setembro'},
+                                {'label': 'Outubro', 'value': 'Outubro'},
+                                {'label': 'Novembro', 'value': 'Novembro'},
+                                {'label': 'Dezembro', 'value': 'Dezembro'},
+                            ],
+                            placeholder="Selecione o Mês*",
+                            className='mb-3'
+                        )
+                    ], md=3),
+                    
+                    dbc.Col([
+                        dbc.Label("Semana"),
+                        dcc.Dropdown(
+                            id='semana',
+                            options=[{'label': f'Semana {i}', 'value': i} for i in range(1, 6)],
+                            placeholder="Nº da Semana*",
+                            className='mb-3'
+                        )
+                    ], md=2),
+                    
+                    dbc.Col([
+                        dbc.Label("Valor (R$)"),
+                        dbc.Input(
+                            id='valor-semanal',
+                            type='number',
+                            step=0.01,
+                            placeholder="0.00",
+                            className='mb-3'
+                        )
+                    ], md=2)
+                ]),
+                dbc.Button(
+                    "Salvar Semanal",
+                    id='salvar-semanal',
+                    color="info",
+                    className='mt-2'
                 )
-            ], md=5),
-            
-            dbc.Col([
-                dbc.Label("Mês"),
-                dcc.Dropdown(
-                    id='mes-semanal',
-                    options=[
-                        {'label': 'Janeiro', 'value': 'Janeiro'},
-                        {'label': 'Fevereiro', 'value': 'Fevereiro'},
-                        {'label': 'Março', 'value': 'Marco'},
-                        {'label': 'Abril', 'value': 'Abril'},
-                        {'label': 'Maio', 'value': 'Maio'},
-                        {'label': 'Junho', 'value': 'Junho'},
-                        {'label': 'Julho', 'value': 'Julho'},
-                        {'label': 'Agosto', 'value': 'Agosto'},
-                        {'label': 'Setembro', 'value': 'Setembro'},
-                        {'label': 'Outubro', 'value': 'Outubro'},
-                        {'label': 'Novembro', 'value': 'Novembro'},
-                        {'label': 'Dezembro', 'value': 'Dezembro'},
-                    ],
-                    placeholder="Selecione o Mês*",
-                    className='mb-3'
-                )
-            ], md=3),
-            
-            dbc.Col([
-                dbc.Label("Semana"),
-                dcc.Dropdown(
-                    id='semana',
-                    options=[{'label': f'Semana {i}', 'value': i} for i in range(1, 6)],
-                    placeholder="Nº da Semana*",
-                    className='mb-3'
-                )
-            ], md=2),
-            
-            dbc.Col([
-                dbc.Label("Valor (R$)"),
-                dbc.Input(
-                    id='valor-semanal',
-                    type='number',
-                    step=0.01,
-                    placeholder="0.00",
-                    className='mb-3'
-                )
-            ], md=2)
-        ]),
-        dbc.Button(
-            "Salvar Semanal",
-            id='salvar-semanal',
-            color="info",
-            className='mt-2'
-        )
-    ])
-], style=transaction_style, className="shadow-sm mb-4"),
-
-# Componentes de Armazenamento e Alertas
-dcc.Store(id='clientes-store', storage_type='memory'),
-
-dbc.Alert(
-    id='alert', 
-    is_open=False, 
-    duration=4000, 
-    className="animate__animated animate__fadeInRight"
-),
-dbc.Alert(
-    id='alert-transacao', 
-    is_open=False, 
-    duration=4000,
-    className="animate__animated animate__fadeInRight"
-),
-dbc.Alert(
-    id='alert-faturamento', 
-    is_open=False, 
-    duration=4000,
-    className="animate__animated animate__fadeInRight"
-),
-dbc.Alert(
+            ])
+        ], style=transaction_style, className="shadow-sm mb-4"),
+    
+    # Componentes de Armazenamento e Alertas
+    dcc.Store(id='clientes-store', storage_type='memory'),
+    
+    dbc.Alert(
+        id='alert', 
+        is_open=False, 
+        duration=4000, 
+        className="animate__animated animate__fadeInRight"
+    ),
+    dbc.Alert(
+        id='alert-transacao', 
+        is_open=False, 
+        duration=4000,
+        className="animate__animated animate__fadeInRight"
+    ),
+    dbc.Alert(
+        id='alert-faturamento', 
+        is_open=False, 
+        duration=4000,
+        className="animate__animated animate__fadeInRight"
+    ),
+    dbc.Alert(
     id='alert-semanal', 
     is_open=False, 
     duration=4000,
     className="animate__animated animate__fadeInRight"
-)
+    )
+    
+], fluid=True)
 # =============================================
 # CALLBACKS
 # =============================================
@@ -576,8 +564,8 @@ def salvar_transacao(n_clicks, cliente, data_transacao, valor):
     prevent_initial_call=True
 )
 def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabelecimento, 
-                   cpf_cnpj,tipo_comercio, responsavel, telefone, cpf_responsavel, representante, 
-                   portal, pagseguro, sub, pagseguro_email, plano_pagseguro):
+                   cpf_cnpj, tipo_comercio, responsavel, telefone, cpf_responsavel, 
+                   representante, portal, pagseguro, sub, pagseguro_email, plano_pagseguro):
     
     file_path = EXCEL_PATH
     
@@ -596,42 +584,42 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
         data_cadastro = processar_data(data_cadastro)
         data_aprovacao = processar_data(data_aprovacao)
 
+        # Criar dicionário com os dados
         novo_registro = {
-            'DATA DE CADASTRO': data_cadastro,
-            'DATA DE APROVAÇÃO': data_aprovacao,
-            'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
-            'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
-            'TIPO DE COMÉRCIO': tipo_comercio or 'Outros',
-            'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
-            'RESPONSÁVEL E-MAIL': '',  # Adicionar campo faltante
-            'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
-            'RESPONSÁVEL TELEFONE': telefone or '',
-            'STATUS': 'PENDENTE',
-            'REPRESENTANTE NOME1': representante or '',
-            'PORTAL': portal or 'INATIVO',
-            'PAGSEGURO': pagseguro or 'DESABILITADO',
-            'PAGSEGURO EMAIL': pagseguro_email or '',
-            'SUB': sub or 'NÃO HABILITADO',
-            'BANKING': 'NÃO HABILITADO',
-            'PLANO PAG': plano_pagseguro or '',
-            'Unnamed: 17': '',  # Campo vazio
-            'P S': '',  # Campo vazio
-            'Faturamento Dezembro': 0,
-            'Faturamento Janeiro': 0,
-            'Faturamento Fevereiro': 0,
-            'Faturamento Marco': 0,
-            'Faturamento Abril': 0,
-            'Faturamento Maio': 0,
-            'Faturamento Junho': 0,
-            'Faturamento Julho': 0,
-            'Faturamento Agosto': 0,
-            'Faturamento Setembro': 0,
-            'Faturamento Outubro': 0,
-            'Faturamento Novembro': 0,
-            'Faturamento Dezembro.1': 0,
-            'Média de Faturamento': 0.0,
-            'temp_id': ''  # ID temporário
-        }
+        'DATA DE CADASTRO': data_cadastro,
+        'DATA DE APROVAÇÃO': data_aprovacao,
+        'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
+        'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
+        'TIPO DE COMÉRCIO': tipo_comercio or 'Outros',  # Corrigido para a posição correta
+        'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
+        'RESPONSÁVEL E-MAIL': '',  # Adicionado campo faltante
+        'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
+        'RESPONSÁVEL TELEFONE': telefone or '',
+        'STATUS': 'PENDENTE',
+        'REPRESENTANTE NOME1': representante or '',
+        'PORTAL': portal or 'INATIVO',
+        'PAGSEGURO': pagseguro or 'DESABILITADO',
+        'PAGSEGURO EMAIL': pagseguro_email or '',
+        'SUB': sub or 'NÃO HABILITADO',
+        'BANKING': 'NÃO HABILITADO',  # Mantido conforme o Excel
+        'PLANO PAG': plano_pagseguro or '',
+        'Unnamed: 17': '',  # Coluna adicional do Excel
+        'P S': '',  # Coluna adicional do Excel
+        'Faturamento Dezembro': 0,
+        'Faturamento Janeiro': 0,
+        'Faturamento Fevereiro': 0,
+        'Faturamento Março': 0,
+        'Faturamento Abril': 0,
+        'Faturamento Maio': 0,
+        'Faturamento Junho': 0,
+        'Faturamento Julho': 0,
+        'Faturamento Agosto': 0,
+        'Faturamento Setembro': 0,
+        'Faturamento Outubro': 0,
+        'Faturamento Novembro': 0,
+
+        'Média de Faturamento': 0.0
+}
 
         # Carregar ou criar arquivo
         if os.path.exists(file_path):
@@ -648,18 +636,8 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             ws.title = 'Sheet1'
             ws.append(list(novo_registro.keys()))
 
-        
-            # Criar lista ordenada de valores
-            header = [cell.value for cell in ws[1]]
-
-            # Criar lista de valores na ordem correta das colunas
-            valores_ordenados = []
-            for col in header:
-                # Usar valor do novo_registro se existir, senão None
-                valores_ordenados.append(novo_registro.get(col, None))
-
-            # Adicionar nova linha mantendo a ordem original das colunas
-            ws.append(valores_ordenados)
+        # Adicionar nova linha
+        ws.append(list(novo_registro.values()))
 
         # Salvar alterações
         wb.save(file_path)
