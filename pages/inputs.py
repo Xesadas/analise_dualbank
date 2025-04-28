@@ -584,15 +584,15 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
         data_cadastro = processar_data(data_cadastro)
         data_aprovacao = processar_data(data_aprovacao)
 
-        # Criar dicionário com os dados
+        
         novo_registro = {
         'DATA DE CADASTRO': data_cadastro,
         'DATA DE APROVAÇÃO': data_aprovacao,
         'ESTABELECIMENTO NOME1': nome_estabelecimento or '',
         'ESTABELECIMENTO CPF/CNPJ': str(cpf_cnpj).strip() if cpf_cnpj else '',
-        'TIPO DE COMÉRCIO': tipo_comercio or 'Outros',  # Corrigido para a posição correta
+        'TIPO DE COMÉRCIO': tipo_comercio or 'Outros',  
         'RESPONSÁVEL DO ESTABELECIMENTO': responsavel or '',
-        'RESPONSÁVEL E-MAIL': '',  # Adicionado campo faltante
+        'RESPONSÁVEL E-MAIL': '',  
         'RESPONSÁVEL CPF/CNPJ': cpf_responsavel or '',
         'RESPONSÁVEL TELEFONE': telefone or '',
         'STATUS': 'PENDENTE',
@@ -601,10 +601,10 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
         'PAGSEGURO': pagseguro or 'DESABILITADO',
         'PAGSEGURO EMAIL': pagseguro_email or '',
         'SUB': sub or 'NÃO HABILITADO',
-        'BANKING': 'NÃO HABILITADO',  # Mantido conforme o Excel
+        'BANKING': 'NÃO HABILITADO',  #
         'PLANO PAG': plano_pagseguro or '',
-        'Unnamed: 17': '',  # Coluna adicional do Excel
-        'P S': '',  # Coluna adicional do Excel
+        'ATIVIDADE':'', 
+        'P S': '',  
         'Faturamento Dezembro': 0,
         'Faturamento Janeiro': 0,
         'Faturamento Fevereiro': 0,

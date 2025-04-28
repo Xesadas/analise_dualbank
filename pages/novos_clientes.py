@@ -180,7 +180,7 @@ def load_analysis_data():
         return pd.DataFrame()
 
 # =====================================
-# LAYOUT (CORRIGIDO)
+# LAYOUT
 # =====================================
 layout = html.Div(
     [
@@ -384,7 +384,7 @@ def update_dropdown(_):
             sheet_name='Sheet1',
             usecols=['ESTABELECIMENTO NOME1', 'ESTABELECIMENTO CPF/CNPJ'],
             dtype={'ESTABELECIMENTO CPF/CNPJ': str}
-        ).dropna(subset=['ESTABELECIMENTO CPF/CNPJ'])  # Remove linhas com CPF/CNPJ faltante
+        ).dropna(subset=['ESTABELECIMENTO CPF/CNPJ'])  
 
         analysis_df = pd.read_excel(
             EXCEL_PATH,
@@ -561,10 +561,8 @@ def handle_new_client_registration(n_clicks, cpf_cnpj, frequencia):
                     html.Small(f"Status: {frequencia.capitalize()}", 
                               style={'color': COLORS['highlight']})
                 ]),
-                False  # Desativa o loading
+                False
             )
         except Exception as e:
             return dash.no_update, html.Span(f"❌ Erro: {str(e)}", style={'color': COLORS['danger']}), False
     return dash.no_update, dash.no_update, False
-
-#teste?
