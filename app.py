@@ -32,7 +32,7 @@ app.layout = html.Div([
         dcc.Link('📈 Acompanhamento Clientes', href=dash.page_registry['pages.analise']['path'], style=link_style),
         dcc.Link('📁 Dados Clientes', href=dash.page_registry['pages.dados']['path'], style=link_style),
         dcc.Link('📝 Lançamento de Dados dos Clientes', href=dash.page_registry['pages.inputs']['path'], style=link_style),
-        dcc.Link('🦈🦈🦈🦈Novos clientes🦈🦈🦈🦈', href=dash.page_registry['pages.novos_clientes']['path'], style=link_style),
+        dcc.Link('Novos clientes', href=dash.page_registry['pages.novos_clientes']['path'], style=link_style),
         dcc.Link('💸 Emprestimos', href=dash.page_registry['pages.Emprestimos']['path'], style=link_style),
         dcc.Link('🕵️‍♂️ Análise Agente', href=dash.page_registry['pages.agent_analysis']['path'], style=link_style),
 
