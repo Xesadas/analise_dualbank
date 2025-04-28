@@ -231,6 +231,7 @@ layout = html.Div(
                                     dcc.Dropdown(
                                         id='frequencia-select',
                                         options=[
+                                            {'label': 'Aguardando', 'value': 'aguardando'}, 
                                             {'label': 'Diariamente', 'value': 'diaria'},
                                             {'label': 'Às Vezes', 'value': 'as_vezes'},
                                             {'label': 'Raramente', 'value': 'raramente'}
@@ -265,7 +266,7 @@ layout = html.Div(
                                 dbc.Col(
                                     dbc.Card(
                                         [
-                                            dbc.CardHeader("Média de Valores", className='card-header'),
+                                            dbc.CardHeader("Média de Valores", className='card-header', style={'textAlign': 'center'}),
                                             dbc.CardBody(
                                                 html.H4(id='media-valores', className='card-text')
                                             )
@@ -291,8 +292,25 @@ layout = html.Div(
 )
 
 # =====================================
-# CALLBACKS (CORRIGIDOS)
+# CALLBACKS 
 # =====================================
+
+# Callback para estilo do dropdown de cliente
+@callback(
+    Output('cliente-select', 'style'),
+    Input('cliente-select', 'value')
+)
+def update_cliente_style(value):
+    return {'border': '2px solid #2ecc71'} if value else {'border': '1px solid #ffffff'}
+
+# Callback para estilo do dropdown de frequência
+@callback(
+    Output('frequencia-select', 'style'),
+    Input('frequencia-select', 'value')
+)
+def update_freq_style(value):
+    return {'border': '2px solid #2ecc71'} if value else {'border': '1px solid #ffffff'}
+
 
 @callback(
     Output('remover-cliente-btn', 'disabled'),
@@ -484,6 +502,7 @@ def update_transaction_chart(selected_client):
         
         fig.update_layout(
             title='Histórico de Transações',
+            title_x=0.5,
             xaxis_title='Data',
             yaxis_title='Valor (R$)',
             plot_bgcolor=COLORS['plot_bg'],
@@ -516,28 +535,34 @@ def toggle_register_button(selected_client):
         return True
 
 @callback(
-    Output('clientes-store', 'data', allow_duplicate=True),
-    Output('analise-output-mensagem', 'children', allow_duplicate=True),
+    [
+        Output('clientes-store', 'data', allow_duplicate=True),
+        Output('analise-output-mensagem', 'children', allow_duplicate=True),
+        Output('registrar-cliente-btn', 'loading')
+    ],
     Input('registrar-cliente-btn', 'n_clicks'),
-    State('cliente-select', 'value'),
-    State('frequencia-select', 'value'),  # Novo State
+    [
+        State('cliente-select', 'value'),
+        State('frequencia-select', 'value')
+    ],
     prevent_initial_call=True
 )
 def handle_new_client_registration(n_clicks, cpf_cnpj, frequencia):
-    if n_clicks and cpf_cnpj and frequencia:  # Verifica frequencia
+    if n_clicks and cpf_cnpj and frequencia:
         try:
             cpf_cnpj = re.sub(r'\D', '', str(cpf_cnpj))
-            success = register_new_client(cpf_cnpj, frequencia)  # Passa frequencia
-            if success:
-                return (
-                    {'timestamp': datetime.now().isoformat()},
-                    html.Div([
-                        html.Span("✅ Cliente registrado com sucesso!", style={'color': COLORS['success']}),
-                        html.Br(),
-                        html.Small("Frequência salva: " + frequencia, style={'color': COLORS['highlight']})
-                    ])
-                )
-            return dash.no_update, html.Span("❌ Falha no registro", style={'color': COLORS['danger']})
+            success = register_new_client(cpf_cnpj, frequencia)
+            return (
+                {'timestamp': datetime.now().isoformat()},
+                html.Div([
+                    html.Span("✅ Cliente registrado com sucesso!", 
+                             style={'color': COLORS['success'], 'fontWeight': 'bold'}),
+                    html.Br(),
+                    html.Small(f"Status: {frequencia.capitalize()}", 
+                              style={'color': COLORS['highlight']})
+                ]),
+                False  # Desativa o loading
+            )
         except Exception as e:
-            return dash.no_update, html.Span(f"❌ Erro: {str(e)}", style={'color': COLORS['danger']})
-    return dash.no_update, html.Span("Preencha todos os campos!", style={'color': COLORS['text']})
+            return dash.no_update, html.Span(f"❌ Erro: {str(e)}", style={'color': COLORS['danger']}), False
+    return dash.no_update, dash.no_update, False
