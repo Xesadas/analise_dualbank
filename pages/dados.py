@@ -122,7 +122,7 @@ layout = html.Div([
         html.Div([
             html.H1("📋 Dados Clientes", className="titulo-dados"),
             
-            dbc.Row([
+           dbc.Row([
                 dbc.Col(
                     dcc.Dropdown(
                         id='sheet-selector',
@@ -131,7 +131,7 @@ layout = html.Div([
                         placeholder='📑 Selecione a aba...',
                         className='dropdown-sheets'
                     ),
-                    md=4
+                    md=3  # Ajuste de 4 para 3 para acomodar 4 colunas
                 ),
                 dbc.Col(
                     dcc.Input(
@@ -141,7 +141,7 @@ layout = html.Div([
                         className='campo-pesquisa',
                         style={'width': '100%'}
                     ),
-                    md=4
+                    md=3
                 ),
                 dbc.Col(
                     dcc.Dropdown(
@@ -151,7 +151,17 @@ layout = html.Div([
                         className='dropdown-representantes',
                         clearable=True
                     ),
-                    md=4
+                    md=3
+                ),
+                dbc.Col(  # Novo dropdown para status
+                    dcc.Dropdown(
+                        id='status-filter',
+                        placeholder='📊 Filtrar por status...',
+                        multi=True,
+                        className='dropdown-status',
+                        clearable=True
+                    ),
+                    md=3
                 )
             ], className='mb-4'),
             
@@ -262,27 +272,42 @@ def update_data_store(selected_sheet):
     Output('full-data-table', 'columns'),
     Output('full-data-table', 'data'),
     Output('representante-filter', 'options'),
+    Output('status-filter', 'options'), 
     Input('data-store', 'data'),
     Input('search-input', 'value'),
     Input('representante-filter', 'value'),
+    Input('status-filter', 'value'),  
 )
-def update_table(data, search_text, selected_representantes):
+def update_table(data, search_text, selected_representantes, selected_statuses):
     df = pd.DataFrame(data)
     
+    # Filtro de busca
     if search_text:
         df = df[df['ESTABELECIMENTO NOME1'].str.contains(search_text, case=False, na=False)]
     
+    # Filtro de representante
     if selected_representantes and 'REPRESENTANTE NOME1' in df.columns:
         df = df[df['REPRESENTANTE NOME1'].isin(selected_representantes)]
     
+    # Novo filtro de status (Atividade)
+    if selected_statuses and 'ATIVIDADE' in df.columns:
+        df = df[df['ATIVIDADE'].isin(selected_statuses)]
+    
     columns = [{"name": col, "id": col} for col in df.columns if col != 'id']
     
+    # Opções para representantes
     rep_options = []
     if 'REPRESENTANTE NOME1' in df.columns:
         reps = df['REPRESENTANTE NOME1'].dropna().unique()
         rep_options = [{'label': rep, 'value': rep} for rep in reps]
     
-    return columns, df.to_dict('records'), rep_options
+    # Opções para status (Atividade)
+    status_options = []
+    if 'ATIVIDADE' in df.columns:
+        statuses = df['ATIVIDADE'].dropna().unique()
+        status_options = [{'label': status, 'value': status} for status in statuses]
+    
+    return columns, df.to_dict('records'), rep_options, status_options
 
 @callback(
     Output('dados-output-mensagem', 'children'),
