@@ -293,7 +293,7 @@ def determinar_meses_relevantes(df):
     
 
 # =====================================
-# LAYOUT COMPLETO
+# LAYOUT 
 # =====================================
 
 layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '100vh'}, children=[
@@ -305,7 +305,7 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
                 id='interval-component',
                 interval=1*1000,  # Atualiza a cada segundo 
                 n_intervals=0,
-                disabled=True  # Desativado por padrão
+                disabled=False  # Desativado por padrão
             ),
             html.H1("📈 Análise de Faturamento", 
                    style={'color': COLORS['primary'], 
@@ -435,6 +435,20 @@ layout = html.Div(style={'backgroundColor': COLORS['background'], 'minHeight': '
 #=====================================
 # CALLBACKS 
 #=====================================
+# Adicione este novo callback
+@callback(
+    Output('cliente-dropdown', 'options'),
+    Input('interval-component', 'n_intervals')
+)
+def update_dropdown_options(n):
+    load_data()
+    df_cadastros = cached_data['df_cadastros']
+    options = [{'label': str(nome), 'value': str(nome)} 
+               for nome in df_cadastros['ESTABELECIMENTO NOME1'].unique() 
+               if pd.notna(nome) and str(nome).strip() != '']
+    return options if options else [{'label': 'Sem dados', 'value': 'NO_DATA'}]
+
+
 @callback(
     Output('grafico-mensal', 'figure'),
     Output('grafico-diario', 'figure'),

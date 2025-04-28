@@ -17,7 +17,7 @@ register_page(
 )
 
 # =============================================
-# CONFIGURAÇÃO PERSISTENTE (NOVO)
+# CONFIGURAÇÃO PERSISTENTE 
 # =============================================
 
 logging.basicConfig(level=logging.DEBUG)
