@@ -626,18 +626,25 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
             wb = load_workbook(file_path)
             if 'Sheet1' in wb.sheetnames:
                 ws = wb['Sheet1']
+                headers = [cell.value for cell in ws[1]]  # Obter cabeçalhos existentes
             else:
                 ws = wb.create_sheet('Sheet1')
-                # Adicionar cabeçalhos se nova planilha
-                ws.append(list(novo_registro.keys()))
+                headers = list(novo_registro.keys())
+                ws.append(headers)
         else:
             wb = Workbook()
             ws = wb.active
             ws.title = 'Sheet1'
-            ws.append(list(novo_registro.keys()))
+            headers = list(novo_registro.keys())
+            ws.append(headers)
 
-        # Adicionar nova linha
-        ws.append(list(novo_registro.values()))
+        # Mapear valores para a ordem dos cabeçalhos
+        row_data = []
+        for header in headers:
+            # Usar valor do novo_registro ou string vazia se não existir
+            row_data.append(novo_registro.get(header, ''))  
+
+        ws.append(row_data)
 
         # Salvar alterações
         wb.save(file_path)
