@@ -99,8 +99,8 @@ def save_excel(modified_data):
             engine='openpyxl',
             mode='w'
         ) as writer:
-            for sheet_name in sheet_names:
-                df = modified_data.get(sheet_name, pd.DataFrame())
+            # Iterar diretamente pelos itens do dicionário modificado
+            for sheet_name, df in modified_data.items():  # Alterado aqui
                 if not df.empty:
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
         print("Arquivo salvo com sucesso!")
@@ -308,30 +308,30 @@ def update_table(data, search_text, selected_representantes, selected_statuses):
         status_options = [{'label': status, 'value': status} for status in statuses]
     
     return columns, df.to_dict('records'), rep_options, status_options
-
 @callback(
     Output('dados-output-mensagem', 'children'),
     Output('data-store', 'data', allow_duplicate=True),
     Input('apagar-btn', 'n_clicks'),
     State('full-data-table', 'selected_rows'),
-    State('data-store', 'data'),
+    State('full-data-table', 'data'),
     State('sheet-selector', 'value'),
     prevent_initial_call=True
 )
-def delete_row(n_clicks, selected_rows, data, current_sheet):
+def delete_row(n_clicks, selected_rows, table_data, current_sheet):
     if not selected_rows:
         return "🔴 Selecione uma linha antes de apagar!", dash.no_update
     
     try:
         dfs = load_excel()
         original_df = dfs[current_sheet].copy()
-        current_df = pd.DataFrame(data)
+        current_df = pd.DataFrame(table_data)
         
         selected_uuids = current_df.iloc[selected_rows]['temp_id'].astype(str).tolist()
         
         updated_df = original_df.query("temp_id not in @selected_uuids")
         
-        new_data = {sheet: dfs[sheet] for sheet in sheet_names}
+        # Usar todas as abas carregadas (incluindo novas)
+        new_data = {sheet: dfs[sheet] for sheet in dfs.keys()}  # Alterado aqui
         new_data[current_sheet] = updated_df
         
         save_excel(new_data)
