@@ -85,6 +85,12 @@ body {
     padding: 12px !important;
     font-size: 0.9em !important;
 }
+/* Adicionar quebra de linha para células com conteúdo muito longo */
+.dash-table-container td {
+    white-space: normal !important; /* Permite quebra de linha */
+    word-wrap: break-word !important;
+}
+
 
 .dash-table-container .row-even {
     background-color: #333333 !important; /* Linhas alternadas */
@@ -474,36 +480,37 @@ body {
     max-width: none !important;
 }
 
-/* Substitua ou adicione estas regras */
+/* Alterar o .container-dados para controlar melhor o tamanho */
 .container-dados {
     padding: 2rem;
-    max-width: 98vw;  /* Limitar a largura máxima */
+    max-width: 1200px; /* Tamanho máximo fixo */
     margin: 0 auto;
-    overflow-x: auto; /* Rolagem apenas no container */
+    overflow-x: auto; /* Mantém a rolagem horizontal apenas quando necessário */
 }
 
 .dash-table-container {
     background-color: #1a1a1a !important;
     border-radius: 8px;
-    width: max-content !important; /* Ajuste automático ao conteúdo */
-    min-width: 100%; /* Mínimo de 100% do container */
+    width: 100%; /* Ocupa 100% do container pai */
     margin: 0 auto;
+    overflow: hidden; /* Esconde o overflow extra */
 }
 
 .dash-table-container .dash-spreadsheet-inner {
     min-width: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
 }
 
 /* Ajuste fino das células */
 .dash-table-container th,
 .dash-table-container td {
-    min-width: 180px !important;
-    max-width: 400px !important;
+    min-width: 150px !important; /* Largura mínima reduzida */
+    max-width: 250px !important; /* Largura máxima aumentada */
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    transition: min-width 0.3s ease;
+    padding: 10px !important;
+    font-size: 0.85em !important;
 }
 
 /* Melhorias na responsividade */

@@ -466,9 +466,9 @@ layout = dbc.Container([
 )
 def carregar_clientes(_):
     try:
-        if os.path.exists(EXCEL_PATH):  # Alterado aqui
+        if os.path.exists(EXCEL_PATH):  
             df = pd.read_excel(
-                EXCEL_PATH,  # Alterado aqui
+                EXCEL_PATH,  
                 sheet_name='Sheet1',
                 usecols=['ESTABELECIMENTO CPF/CNPJ'], 
                 dtype={'ESTABELECIMENTO CPF/CNPJ': str}
@@ -601,7 +601,7 @@ def salvar_cadastro(n_clicks, data_cadastro, data_aprovacao, nome_estabeleciment
         'PAGSEGURO': pagseguro or 'DESABILITADO',
         'PAGSEGURO EMAIL': pagseguro_email or '',
         'SUB': sub or 'NÃO HABILITADO',
-        'BANKING': 'NÃO HABILITADO',  #
+        'BANKING': 'NÃO HABILITADO',  
         'PLANO PAG': plano_pagseguro or '',
         'ATIVIDADE':'', 
         'P S': '',  
