@@ -24,6 +24,8 @@ base_columns = [
 
 if processed_sheets:
     df = pd.concat(processed_sheets.values(), ignore_index=True)
+    # Adiciona colunas faltantes da base_columns
+    df = df.reindex(columns=base_columns, fill_value=np.nan) 
 else:
     df = pd.DataFrame(columns=base_columns)
 
@@ -52,7 +54,9 @@ numeric_cols = [
 
 excluir_colunas = ['%_trans.', '%_liberad.', 'acerto_alessandro', 'retirada_felipe', 'máquina']
 
-# Layout da página
+# =====================================
+# LAYOUT 
+# =====================================
 layout = html.Div(
     style={'backgroundColor': colors['background'], 'padding': '20px'},
     children=[
@@ -128,6 +132,7 @@ layout = html.Div(
                     ],
                     data=df.to_dict("records"),
                     page_size=15,
+                    style_table={'minWidth': '100%', 'overflowX': 'auto'},
                     style_cell={
                         'textAlign': 'left',
                         'padding': '8px',
