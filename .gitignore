@@ -1,1 +1,4 @@
 /data
+._pycache_
+/__pycache__/
+/pages/__pycache__/
